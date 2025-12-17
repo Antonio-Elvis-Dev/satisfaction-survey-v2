@@ -1,0 +1,386 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
+import { useNavigate, useParams } from 'react-router-dom';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  CheckCircle, 
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useQuestions } from '@/hooks/useQuestions';
+import { useResponses } from '@/hooks/useResponses';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Answer {
+  questionId: string;
+  value: string | number;
+}
+
+const SurveyApplication = () => {
+  const navigate = useNavigate();
+  const { id: surveyId } = useParams<{ id: string }>();
+  
+  const { questions: questionsData, isLoading } = useQuestions(surveyId);
+  const { createSession, submitResponse, completeSession } = useResponses(surveyId || '');
+  
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [startTime] = useState(Date.now());
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [surveyTitle, setSurveyTitle] = useState('Pesquisa de Satisfação');
+
+  useEffect(() => {
+    if (surveyId) {
+      // Load survey details
+      supabase
+        .from('surveys')
+        .select('title')
+        .eq('id', surveyId)
+        .single()
+        .then(({ data }) => {
+          if (data) setSurveyTitle(data.title);
+        });
+
+      // Create session
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        createSession.mutateAsync({
+          survey_id: surveyId,
+          respondent_id: user?.id,
+        }).then((session) => {
+          setSessionId(session.id);
+        });
+      });
+    }
+  }, [surveyId]);
+
+  const questions = questionsData || [];
+  const currentQuestion = questions[currentQuestionIndex];
+  const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
+
+  const getCurrentAnswer = () => {
+    return answers.find(a => a.questionId === currentQuestion?.id)?.value || '';
+  };
+
+  const setCurrentAnswer = (value: string | number) => {
+    if (!currentQuestion) return;
+    
+    setAnswers(prev => {
+      const existing = prev.find(a => a.questionId === currentQuestion.id);
+      if (existing) {
+        return prev.map(a => 
+          a.questionId === currentQuestion.id ? { ...a, value } : a
+        );
+      } else {
+        return [...prev, { questionId: currentQuestion.id, value }];
+      }
+    });
+  };
+
+  const canProceed = () => {
+    if (!currentQuestion?.is_required) return true;
+    const answer = getCurrentAnswer();
+    return answer !== '' && answer !== undefined;
+  };
+
+  const saveCurrentAnswer = async () => {
+    if (!sessionId || !currentQuestion) return;
+
+    const answer = getCurrentAnswer();
+    if (answer === '' || answer === undefined) return;
+
+    try {
+      // Find selected option ID for multiple choice
+      let selectedOptionId = null;
+      if (currentQuestion.question_type === 'multiple_choice') {
+        const option = currentQuestion.question_options?.find(
+          (opt: any) => opt.option_text === answer
+        );
+        selectedOptionId = option?.id || null;
+      }
+
+      await submitResponse.mutateAsync({
+        session_id: sessionId,
+        question_id: currentQuestion.id,
+        numeric_response: typeof answer === 'number' ? answer : null,
+        text_response: typeof answer === 'string' ? answer : null,
+        selected_option_id: selectedOptionId,
+      });
+    } catch (error) {
+      console.error('Error saving response:', error);
+    }
+  };
+
+  const handleNext = async () => {
+    if (!canProceed()) {
+      toast.error('Esta pergunta é obrigatória');
+      return;
+    }
+
+    await saveCurrentAnswer();
+
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      await handleComplete();
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!sessionId) return;
+
+    const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
+    
+    try {
+      await completeSession.mutateAsync({
+        sessionId,
+        timeSpentSeconds,
+      });
+      setIsCompleted(true);
+      toast.success('Pesquisa enviada com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao finalizar pesquisa');
+    }
+  };
+
+  const renderQuestionInput = () => {
+    if (!currentQuestion) return null;
+    const currentAnswer = getCurrentAnswer();
+
+    switch (currentQuestion.question_type) {
+      case 'rating':
+        const maxRating = currentQuestion.max_rating || 5;
+        return (
+          <div className="space-y-4">
+            <div className="flex justify-center space-x-4">
+              {Array.from({ length: maxRating }, (_, i) => i + 1).map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setCurrentAnswer(num)}
+                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all ${
+                    currentAnswer === num
+                      ? 'bg-primary text-primary-foreground border-primary shadow-glow'
+                      : 'border-primary/20 hover:border-primary/50 hover:bg-primary/5'
+                  }`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Muito ruim</span>
+              <span>Excelente</span>
+            </div>
+          </div>
+        );
+
+      case 'nps':
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-11 gap-2">
+              {Array.from({ length: 11 }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentAnswer(i)}
+                  className={`h-10 rounded border-2 flex items-center justify-center text-sm font-semibold transition-all ${
+                    currentAnswer === i
+                      ? 'bg-primary text-primary-foreground border-primary shadow-card'
+                      : 'border-primary/20 hover:border-primary/50 hover:bg-primary/5'
+                  }`}
+                >
+                  {i}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Não recomendaria</span>
+              <span>Recomendaria muito</span>
+            </div>
+          </div>
+        );
+
+      case 'multiple_choice':
+        return (
+          <div className="space-y-3">
+            {currentQuestion.question_options?.map((option: any) => (
+              <button
+                key={option.id}
+                onClick={() => setCurrentAnswer(option.option_text)}
+                className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
+                  currentAnswer === option.option_text
+                    ? 'bg-primary/5 border-primary text-primary font-medium'
+                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                }`}
+              >
+                {option.option_text}
+              </button>
+            ))}
+          </div>
+        );
+
+      case 'short_text':
+        return (
+          <Input
+            value={currentAnswer as string}
+            onChange={(e) => setCurrentAnswer(e.target.value)}
+            placeholder="Digite sua resposta..."
+            className="text-lg p-4"
+          />
+        );
+
+      case 'long_text':
+        return (
+          <Textarea
+            value={currentAnswer as string}
+            onChange={(e) => setCurrentAnswer(e.target.value)}
+            placeholder="Compartilhe sua opinião..."
+            rows={4}
+            className="text-base p-4"
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
+
+  if (isCompleted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+        <Card className="w-full max-w-md shadow-card-hover text-center">
+          <CardContent className="p-8">
+            <div className="flex justify-center mb-6">
+              <div className="bg-success/10 p-4 rounded-full">
+                <CheckCircle className="h-12 w-12 text-success" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-3">
+              Obrigado!
+            </h2>
+            <p className="text-muted-foreground mb-6">
+              Sua resposta foi enviada com sucesso. Seu feedback é muito importante para nós.
+            </p>
+            <Button 
+              onClick={() => navigate('/dashboard')} 
+              variant="hero" 
+              className="w-full"
+            >
+              Voltar ao Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
+        <p className="text-muted-foreground">Nenhuma pergunta encontrada</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-subtle p-4">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-foreground mb-2">{surveyTitle}</h1>
+          <p className="text-muted-foreground">
+            Pergunta {currentQuestionIndex + 1} de {questions.length}
+          </p>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <Progress value={progress} className="h-2" />
+          <div className="flex justify-between text-sm text-muted-foreground mt-2">
+            <span>Início</span>
+            <span>{Math.round(progress)}% concluído</span>
+            <span>Fim</span>
+          </div>
+        </div>
+
+        {/* Question Card */}
+        <Card className="shadow-card-hover mb-8">
+          <CardHeader>
+            <CardTitle className="text-xl text-center">
+              {currentQuestion.question_text}
+            </CardTitle>
+            {currentQuestion.is_required && (
+              <CardDescription className="text-center">
+                * Esta pergunta é obrigatória
+              </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="p-8">
+            {renderQuestionInput()}
+          </CardContent>
+        </Card>
+
+        {/* Navigation */}
+        <div className="flex justify-between">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentQuestionIndex === 0}
+            className="flex items-center"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Anterior
+          </Button>
+
+          <Button
+            onClick={handleNext}
+            variant="hero"
+            className="flex items-center"
+          >
+            {currentQuestionIndex === questions.length - 1 ? (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Finalizar
+              </>
+            ) : (
+              <>
+                Próxima
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Back to Dashboard */}
+        <div className="text-center mt-8">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/dashboard')}
+            className="text-muted-foreground"
+          >
+            Voltar ao Dashboard
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SurveyApplication;
