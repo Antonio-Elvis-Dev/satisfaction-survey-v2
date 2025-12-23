@@ -1,6 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
+
+interface CreateSurveyData {
+  title: string
+  description?: string | null
+  questions: {
+    title: string
+    type: string
+    is_required: boolean
+    order_index: number
+    options?: string[]
+  }[]
+}
+
 
 export const useSurveys = () => {
   const queryClient = useQueryClient();
@@ -8,32 +23,26 @@ export const useSurveys = () => {
   const { data: surveys, isLoading } = useQuery({
     queryKey: ['surveys'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('surveys')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data as Tables<'surveys'>[];
+      const response = await api.get('/surveys')
+      return response.data
     },
+    enabled: false
   });
 
-  const createSurvey = useMutation({
-    mutationFn: async (survey: Omit<TablesInsert<'surveys'>, 'created_by'>) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
-        .from('surveys')
-        .insert({ ...survey, created_by: user.id })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+
+  const createSurvey = useMutation({
+    mutationFn: async (data: CreateSurveyData) => {
+      const response = await api.post('/surveys', data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['surveys'] });
+      toast.success('Pesquisa criada com sucesso.')
+    },
+    onError: (error: any) => {
+      console.log(error)
+      toast.error('Erro ao criar pesquisa.')
     },
   });
 
@@ -45,7 +54,7 @@ export const useSurveys = () => {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -57,20 +66,20 @@ export const useSurveys = () => {
   const updateSurveyStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'draft' | 'active' | 'paused' | 'completed' }) => {
       const updates: Partial<Tables<'surveys'>> = { status };
-      
+
       if (status === 'active') {
         updates.published_at = new Date().toISOString();
       } else if (status === 'completed') {
         updates.closed_at = new Date().toISOString();
       }
-      
+
       const { data, error } = await supabase
         .from('surveys')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -85,7 +94,7 @@ export const useSurveys = () => {
         .from('surveys')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
