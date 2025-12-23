@@ -38,7 +38,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
                 user: {
                     id: user.id,
                     email: user.email,
-                    roles: userRoles.map(r => r.role)
+                    role: mainRole
                 }
             })
     } catch (error) {
