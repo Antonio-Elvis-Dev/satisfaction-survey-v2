@@ -8,6 +8,20 @@ export class PrismaSurveyRepository implements SurveysRepository {
         return await prisma.survey.findUnique({
             where: {
                 id
+            },
+            include: {
+                question: {
+                    orderBy: {
+                        order_index: 'asc'
+                    },
+                    include: {
+                        options: {
+                            orderBy: {
+                                order_index: 'asc'
+                            }
+                        }
+                    }
+                }
             }
         })
 

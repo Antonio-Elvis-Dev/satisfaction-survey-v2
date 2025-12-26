@@ -6,6 +6,7 @@ import fastifyCors from "@fastify/cors"
 import fastifyCookie from "@fastify/cookie"
 import { usersRoutes } from "./http/controllers/users/routes"
 import { surveysRoutes } from "./http/controllers/surveys/routes"
+import { dashboardRoutes } from "./http/controllers/dashboard/routes"
 
 export const app = fastify()
 
@@ -21,12 +22,13 @@ app.register(fastifyJwt, {
     cookieName: 'refreshToken',
     signed: false,
   },
-  sign: {
-    expiresIn: '10m',
-  },
+  // sign: {
+  //   expiresIn: '10m',
+  // },
 })
 
 app.register(fastifyCookie)
+app.register(dashboardRoutes)
 app.register(usersRoutes)
 app.register(surveysRoutes)
 
