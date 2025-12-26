@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
+import {
+  BarChart3,
+  TrendingUp,
+  Users,
   MessageSquare,
   Download,
   Filter,
@@ -48,40 +48,48 @@ const Analytics = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const selectedSurveyId = searchParams.get('survey');
-  
-  const { surveys } = useSurveys();
-  const { metrics, responses, processedData, isLoading } = useAnalytics(selectedSurveyId || '');
 
+  const { analytics, isLoading } = useAnalytics(selectedSurveyId || '');
+
+  if (isLoading) {
+    return <AnalyticsSkeleton />
+  }
+  if (!analytics) {
+    return <div>Pesquisa não encontrada</div>
+  }
   // console.log(selectedSurveyId)
 
+  const { stats, survey:selectedSurvey } = analytics
+  
   const { processedSentiments, analyzeSentiment, isAnalyzing, sentiments } = useSentimentAnalysis(selectedSurveyId || '');
-  
-  const selectedSurvey = surveys?.find(s => s.id === selectedSurveyId);
-  
+
+
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  
+
+
+
   // Apply date filters to responses
   const filteredResponses = React.useMemo(() => {
     if (!responses) return [];
-    
+
     return responses.filter(r => {
       if (!r.completed_at) return true;
-      
+
       const responseDate = new Date(r.completed_at);
-      
+
       if (dateFrom) {
         const fromDate = new Date(dateFrom);
         if (responseDate < fromDate) return false;
       }
-      
+
       if (dateTo) {
         const toDate = new Date(dateTo);
         toDate.setHours(23, 59, 59, 999); // Include the entire end date
         if (responseDate > toDate) return false;
       }
-      
+
       return true;
     });
   }, [responses, dateFrom, dateTo]);
@@ -100,7 +108,7 @@ const Analytics = () => {
         }
         return acc;
       }, []),
-      
+
       npsDistribution: filteredResponses.reduce((acc: any, r) => {
         if (r.question_type === 'nps' && r.numeric_response !== null) {
           if (r.numeric_response <= 6) acc.detractors++;
@@ -109,7 +117,7 @@ const Analytics = () => {
         }
         return acc;
       }, { detractors: 0, passives: 0, promoters: 0 }),
-      
+
       openResponses: filteredResponses.filter(r => r.text_response) || []
     };
   }, [filteredResponses]);
@@ -130,7 +138,7 @@ const Analytics = () => {
       ])
     ];
 
-    const csvContent = csvData.map(row => 
+    const csvContent = csvData.map(row =>
       row.map(cell => `"${cell}"`).join(',')
     ).join('\n');
 
@@ -171,12 +179,18 @@ const Analytics = () => {
 
   const totalFiltered = filteredResponses.length;
   const npsData = [
-    { range: '0-6 (Detratores)', count: filteredProcessedData.npsDistribution.detractors, 
-      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.detractors / totalFiltered) * 100) : 0 },
-    { range: '7-8 (Neutros)', count: filteredProcessedData.npsDistribution.passives,
-      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.passives / totalFiltered) * 100) : 0 },
-    { range: '9-10 (Promotores)', count: filteredProcessedData.npsDistribution.promoters,
-      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.promoters / totalFiltered) * 100) : 0 }
+    {
+      range: '0-6 (Detratores)', count: filteredProcessedData.npsDistribution.detractors,
+      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.detractors / totalFiltered) * 100) : 0
+    },
+    {
+      range: '7-8 (Neutros)', count: filteredProcessedData.npsDistribution.passives,
+      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.passives / totalFiltered) * 100) : 0
+    },
+    {
+      range: '9-10 (Promotores)', count: filteredProcessedData.npsDistribution.promoters,
+      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.promoters / totalFiltered) * 100) : 0
+    }
   ];
 
   return (
@@ -225,9 +239,9 @@ const Analytics = () => {
                   Aplicar Filtros
                 </Button>
                 {(dateFrom || dateTo) && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
+                  <Button
+                    variant="outline"
+                    className="w-full"
                     onClick={() => {
                       setDateFrom('');
                       setDateTo('');
@@ -249,6 +263,7 @@ const Analytics = () => {
 
       {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
         <Card className="shadow-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -337,11 +352,10 @@ const Analytics = () => {
                     <span className="text-muted-foreground">{item.count} ({item.percentage}%)</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full ${
-                        index === 0 ? 'bg-destructive' : 
-                        index === 1 ? 'bg-warning' : 'bg-success'
-                      }`}
+                    <div
+                      className={`h-2 rounded-full ${index === 0 ? 'bg-destructive' :
+                          index === 1 ? 'bg-warning' : 'bg-success'
+                        }`}
                       style={{ width: `${item.percentage}%` }}
                     />
                   </div>
@@ -457,7 +471,7 @@ const Analytics = () => {
               Respostas Abertas
             </CardTitle>
             <CardDescription>
-              Feedback qualitativo dos respondentes 
+              Feedback qualitativo dos respondentes
               {(dateFrom || dateTo) && ' (filtrado)'}
             </CardDescription>
           </CardHeader>
@@ -466,23 +480,23 @@ const Analytics = () => {
               {filteredProcessedData.openResponses
                 .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
                 .map((item, index) => (
-                <div key={index} className="p-4 border border-border rounded-lg">
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-sm text-muted-foreground">
-                      {item.completed_at ? new Date(item.completed_at).toLocaleDateString('pt-BR') : 'N/A'}
-                    </span>
+                  <div key={index} className="p-4 border border-border rounded-lg">
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-sm text-muted-foreground">
+                        {item.completed_at ? new Date(item.completed_at).toLocaleDateString('pt-BR') : 'N/A'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground italic">"{item.text_response}"</p>
                   </div>
-                  <p className="text-sm text-foreground italic">"{item.text_response}"</p>
-                </div>
-              ))}
+                ))}
             </div>
-            
+
             {/* Pagination for open responses */}
             {filteredProcessedData.openResponses.length > ITEMS_PER_PAGE && (
               <Pagination className="mt-6">
                 <PaginationContent>
                   <PaginationItem>
-                    <PaginationPrevious 
+                    <PaginationPrevious
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                     />
@@ -499,7 +513,7 @@ const Analytics = () => {
                     </PaginationItem>
                   ))}
                   <PaginationItem>
-                    <PaginationNext 
+                    <PaginationNext
                       onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProcessedData.openResponses.length / ITEMS_PER_PAGE), p + 1))}
                       className={currentPage === Math.ceil(filteredProcessedData.openResponses.length / ITEMS_PER_PAGE) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                     />

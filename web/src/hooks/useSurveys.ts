@@ -44,23 +44,32 @@ export const useSurveys = () => {
       console.log(error)
       toast.error('Erro ao criar pesquisa.')
     },
-    
+
   });
 
   const updateSurvey = useMutation({
-    
+
   });
 
   const updateSurveyStatus = useMutation({
-    
+
   });
 
   const deleteSurvey = useMutation({
-    
+    mutationFn: async (id: string) => {
+      await api.delete(`/surveys/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['surveys'] });
+      toast.success('Pesquisa excluída com sucesso');
+    },
+    onError: () => {
+      toast.error('Erro ao excluir pesquisa');
+    }
   });
 
   const duplicateSurvey = useMutation({
-   
+
   });
 
   return {

@@ -14,6 +14,7 @@ export const app = fastify()
 
 app.register(fastifyCors, {
   origin: true, // Em produção, deves colocar a URL exata do frontend (ex: 'http://localhost:5173')
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true, // Permite envio de cookies se necessário
 })
 app.register(fastifyJwt, {
