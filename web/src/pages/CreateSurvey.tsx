@@ -243,8 +243,8 @@ const CreateSurvey = () => {
             questions: questions.map((q, index) => ({
                 title: q.title,
                 type: q.type, 
-                is_required: q.required, // Renomeia: required -> isRequired
-                order_index: index,      // Adiciona: index do array -> orderIndex
+                is_required: q.required, 
+                order_index: index,      
                 options: q.type === 'multiple_choice' ? q.options : []
             }))
         };

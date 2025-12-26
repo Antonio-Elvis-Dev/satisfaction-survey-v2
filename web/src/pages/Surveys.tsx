@@ -58,21 +58,11 @@ const Surveys = () => {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedSurvey, setSelectedSurvey] = useState<{ id: string; title: string } | null>(null);
   const [questionsCount, setQuestionsCount] = React.useState<Record<string, number>>({});
-  const { surveys: surveysData, isLoading, deleteSurvey, duplicateSurvey, updateSurveyStatus } = useSurveys();
+  const { fetchData: surveysData, isLoading, deleteSurvey, duplicateSurvey, updateSurveyStatus } = useSurveys();
 
   React.useEffect(() => {
     const fetchQuestionCounts = async () => {
-      if (!surveysData) return;
       
-      const counts: Record<string, number> = {};
-      for (const survey of surveysData) {
-        const { count } = await supabase
-          .from('questions')
-          .select('*', { count: 'exact', head: true })
-          .eq('survey_id', survey.id);
-        counts[survey.id] = count || 0;
-      }
-      setQuestionsCount(counts);
     };
     
     fetchQuestionCounts();
@@ -82,7 +72,9 @@ const Surveys = () => {
     return <SurveysSkeleton />;
   }
 
-  const surveys = surveysData?.map(s => ({
+  const rawSurveys = surveysData?.surveys || surveysData || [];
+
+  const surveys = rawSurveys?.map(s => ({
     ...s,
     responses: s.total_responses || 0,
     created: new Date(s.created_at).toLocaleDateString('pt-BR'),

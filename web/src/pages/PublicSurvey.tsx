@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useSurveys } from '@/hooks/useSurveys';
+import { api } from '@/lib/api';
 
 interface Question {
   id: string;
@@ -43,35 +45,45 @@ const PublicSurvey = () => {
 
   const STORAGE_KEY = `survey_progress_${surveyId}`;
 
+
+  const { } = useSurveys()
+
   // Load saved progress from localStorage
   useEffect(() => {
-    if (!surveyId) return;
+    const loadSurvey = async () => {
+      if (!surveyId) return
 
-    try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      if (savedData) {
-        const { answers: savedAnswers, currentQuestionIndex: savedIndex, timestamp } = JSON.parse(savedData);
+      try {
+        const response = await api.get(`/public/surveys/${surveyId}`);
+        const surveyData = response.data.survey;
 
-        // Check if saved data is not too old (7 days)
-        const savedTime = new Date(timestamp).getTime();
-        const now = Date.now();
-        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+        setSurveyTitle(surveyData.title);
 
-        if (now - savedTime < sevenDaysInMs) {
-          setAnswers(savedAnswers);
-          setCurrentQuestionIndex(savedIndex);
-          toast.success('Progresso restaurado! Você pode continuar de onde parou.', {
-            description: 'Suas respostas anteriores foram recuperadas'
-          });
-        } else {
-          // Clear old data
-          localStorage.removeItem(STORAGE_KEY);
-        }
+        // Mapeia perguntas (o backend já manda ordenado!)
+        const loadedQuestions = surveyData.question.map((q: any) => ({
+          id: q.id,
+          question_type: q.question_type,
+          question_text: q.question_text,
+          is_required: q.is_required,
+          max_rating: q.max_rating,
+          // Mapeia opções
+          question_options: q.options?.map((opt: any) => ({
+            id: opt.id,
+            option_text: opt.option_text,
+            order_index: opt.order_index
+          }))
+        }));
+
+        setQuestions(loadedQuestions);
+      } catch (error) {
+        toast.error('Erro ao carregar pesquisa');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading saved progress:', error);
-    }
-  }, [surveyId, STORAGE_KEY]);
+    };
+
+    loadSurvey();
+  }, [surveyId]);
 
   // Save progress to localStorage whenever answers or question index changes
   useEffect(() => {
