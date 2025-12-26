@@ -1,6 +1,7 @@
 import { Survey, Prisma } from '@prisma/client';
 import { SurveysRepository } from './../surveys-repository';
 import { randomUUID } from 'crypto';
+import { da } from 'zod/v4/locales';
 export class InMemorySurveysRepository implements SurveysRepository {
 
     public items: Survey[] = []
@@ -29,20 +30,21 @@ export class InMemorySurveysRepository implements SurveysRepository {
         const survey: Survey = {
 
             id: randomUUID(),
+            user_id:data.id ?? null,
             title: data.title,
             description: data.description ?? null,
             status: data.status ?? 'draft',
-            createdById: data.createdBy.connect?.id ?? randomUUID(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            publishedAt: new Date(),
-            closedAt: new Date(),
-            allowAnonymous: data.allowAnonymous ?? false,
-            showProgressBar: data.showProgressBar ?? true,
-            thankYouMessage: data.thankYouMessage ?? '',
-            totalResponses: data.totalResponses ?? 0,
-            isTemplate: data.isTemplate ?? false,
-            duplicatedFromId: (data.duplicatedFrom as any)?.connect?.id ?? null,
+            created_by_id: data.created_by.connect?.id ?? randomUUID(),
+            created_at: new Date(),
+            updated_at: new Date(),
+            published_at: new Date(),
+            closed_at: new Date(),
+            allow_anonymous: data.allow_anonymous ?? false,
+            show_progress_bar: data.show_progress_bar ?? true,
+            thank_you_message: data.thank_you_message ?? '',
+            total_responses: data.total_responses ?? 0,
+            is_template: data.is_template ?? false,
+            duplicated_from_id: (data.duplicated_from as any)?.connect?.id ?? null,
 
         }
         this.items.push(survey)

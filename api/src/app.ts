@@ -2,25 +2,35 @@ import fastify from "fastify"
 import { z, ZodError } from "zod"
 import { env } from "./env"
 import fastifyJwt from "@fastify/jwt"
-
+import fastifyCors from "@fastify/cors"
 import fastifyCookie from "@fastify/cookie"
 import { usersRoutes } from "./http/controllers/users/routes"
+import { surveysRoutes } from "./http/controllers/surveys/routes"
+import { dashboardRoutes } from "./http/controllers/dashboard/routes"
 
 export const app = fastify()
 
+
+
+app.register(fastifyCors, {
+  origin: true, // Em produção, deves colocar a URL exata do frontend (ex: 'http://localhost:5173')
+  credentials: true, // Permite envio de cookies se necessário
+})
 app.register(fastifyJwt, {
   secret: env.JWT_SECRET,
   cookie: {
     cookieName: 'refreshToken',
     signed: false,
   },
-  sign: {
-    expiresIn: '10m',
-  },
+  // sign: {
+  //   expiresIn: '10m',
+  // },
 })
 
 app.register(fastifyCookie)
+app.register(dashboardRoutes)
 app.register(usersRoutes)
+app.register(surveysRoutes)
 
 app.setErrorHandler((error, _, reply) => {
     if (error instanceof ZodError) {

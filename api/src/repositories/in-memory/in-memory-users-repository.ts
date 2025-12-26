@@ -63,9 +63,9 @@ export class InMemoryUsersRepository implements UsersRepository {
         const user = {
             id: randomUUID(),
             email: data.email,
-            passwordHash: data.passwordHash,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            password_hash: data.password_hash,
+            created_at: new Date(),
+            updated_at: new Date()
 
         }
         this.items.push(user)

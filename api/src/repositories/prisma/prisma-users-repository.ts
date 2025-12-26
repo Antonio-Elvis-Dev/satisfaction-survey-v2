@@ -16,7 +16,6 @@ export class PrismaUsersRepository implements UsersRepository {
                 id
             },
             data
-
         })
 
     }
@@ -43,33 +42,45 @@ export class PrismaUsersRepository implements UsersRepository {
         const user = await prisma.user.findUnique({
             where: {
                 email
+            },
+            include:{
+                profile:true
             }
         })
         return user
     }
 
-    async create(data: Prisma.UserCreateInput) {
+    async create(data: { email: string, password_hash: string, full_name: string }) {
 
-        let role: AppRole = 'admin'
+        const role: AppRole = data.email === 'admin@teste.com' ? 'admin' : "viewer"
 
-        const user = await prisma.user.create({
-            data
+        return await prisma.$transaction(async (tx) => {
+
+            const user = await tx.user.create({
+                data: {
+                    email: data.email,
+                    password_hash: data.password_hash,
+                }
+            })
+
+            await tx.profile.create({
+                data: {
+                    id: user.id,
+                    full_name: data.full_name,
+                    avatar_url: null
+                }
+            })
+
+            await tx.userRole.create({
+                data: {
+                    user_id: user.id,
+                    role,
+                    created_by_id: user.id
+                }
+            })
+            return user
+
         })
-
-        if (user.email !== 'admin@teste.com') {
-            role = 'viewer'
-        }
-
-        await prisma.userRole.create({
-            data: {
-                user_id: user.id,
-                role,
-                created_by_id: user.id
-            }
-        })
-
-        return user
     }
-
 
 }

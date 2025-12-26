@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  # Serviço do Banco de Dados
+  database:
+    image: bitnami/postgresql
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRESQL_USERNAME=docker
+      - POSTGRESQL_PASSWORD=docker
+      - POSTGRESQL_DATABASE=satisfacao_db
+    volumes:
+      - pgdata:/bitnami/postgresql # Salva os dados mesmo se desligar o container
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  # Serviço da API (Backend)
+  api:
+    build: ./api # Pasta onde está o Dockerfile da API
+    ports:
+      - "3333:3333"
+    depends_on:
+      - database # Espera o banco iniciar
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      # Note que usamos 'database' como host, que é o nome do serviço acima
+      - DATABASE_URL=postgresql://docker:docker@database:5432/satisfacao_db?schema=public
+      - JWT_SECRET=uma-senha-super-secreta-para-os-tokens
+      - PORT=3333
+    volumes:
+      - ./api:/usr/src/app # Sincroniza seus arquivos locais com o container (Hot Reload)
+      - /usr/src/app/node_modules
+
+  # Serviço da Web (Frontend)
+  web:
+    build: ./web # Pasta onde está o Dockerfile da Web
+    ports:
+      - "5173:5173"
+    environment:
+      # Aponta para a API rodando no Docker
+      - VITE_API_URL=http://localhost:3333
+    volumes:
+      - ./web:/usr/src/app # Sincroniza arquivos (Hot Reload)
+      - /usr/src/app/node_modules
+
+volumes:
+  pgdata:
