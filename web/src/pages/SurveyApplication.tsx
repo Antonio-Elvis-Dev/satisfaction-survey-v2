@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuestions } from '@/hooks/useQuestions';
-import { useResponses } from '@/hooks/useResponses';
+import { api } from '@/lib/api'; // Importando api diretamente para o submit
 
 interface Answer {
   questionId: string;
@@ -23,23 +23,16 @@ const SurveyApplication = () => {
   const navigate = useNavigate();
   const { id: surveyId } = useParams<{ id: string }>();
   
+  // Assumindo que useQuestions retorna { survey, questions } ou similar
   const { questions: questionsData, isLoading } = useQuestions(surveyId);
-  const { createSession, submitResponse, completeSession } = useResponses(surveyId || '');
   
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [startTime] = useState(Date.now());
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [surveyTitle, setSurveyTitle] = useState('Pesquisa de Satisfação');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (surveyId) {
-      // Load survey details
-     
-    }
-  }, [surveyId]);
-
+  // Normalização segura dos dados
   const questions = questionsData || [];
   const currentQuestion = questions[currentQuestionIndex];
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
@@ -66,49 +59,19 @@ const SurveyApplication = () => {
   const canProceed = () => {
     if (!currentQuestion?.is_required) return true;
     const answer = getCurrentAnswer();
-    return answer !== '' && answer !== undefined;
+    return answer !== '' && answer !== undefined && answer !== null;
   };
 
-  const saveCurrentAnswer = async () => {
-    if (!sessionId || !currentQuestion) return;
-
-    const answer = getCurrentAnswer();
-    if (answer === '' || answer === undefined) return;
-
-    try {
-      // Find selected option ID for multiple choice
-      let selectedOptionId = null;
-      if (currentQuestion.question_type === 'multiple_choice') {
-        const option = currentQuestion.question_options?.find(
-          (opt: any) => opt.option_text === answer
-        );
-        selectedOptionId = option?.id || null;
-      }
-
-      await submitResponse.mutateAsync({
-        session_id: sessionId,
-        question_id: currentQuestion.id,
-        numeric_response: typeof answer === 'number' ? answer : null,
-        text_response: typeof answer === 'string' ? answer : null,
-        selected_option_id: selectedOptionId,
-      });
-    } catch (error) {
-      console.error('Error saving response:', error);
-    }
-  };
-
-  const handleNext = async () => {
+  const handleNext = () => {
     if (!canProceed()) {
       toast.error('Esta pergunta é obrigatória');
       return;
     }
 
-    await saveCurrentAnswer();
-
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
-      await handleComplete();
+      handleComplete();
     }
   };
 
@@ -119,19 +82,26 @@ const SurveyApplication = () => {
   };
 
   const handleComplete = async () => {
-    if (!sessionId) return;
+    if (!surveyId) return;
 
+    // Cálculo do tempo gasto
     const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
     
+    setIsSubmitting(true);
     try {
-      await completeSession.mutateAsync({
-        sessionId,
-        timeSpentSeconds,
+      // Envio único para o endpoint bulk que está no seu Controller submit.ts
+      await api.post(`/surveys/${surveyId}/submit`, {
+        timeSpent: timeSpentSeconds,
+        answers: answers
       });
+
       setIsCompleted(true);
       toast.success('Pesquisa enviada com sucesso!');
     } catch (error) {
-      toast.error('Erro ao finalizar pesquisa');
+      console.error(error);
+      toast.error('Erro ao enviar pesquisa. Tente novamente.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -139,17 +109,20 @@ const SurveyApplication = () => {
     if (!currentQuestion) return null;
     const currentAnswer = getCurrentAnswer();
 
+    // Verificação de segurança para options (prisma retorna 'options', frontend as vezes espera 'question_options')
+    const options = currentQuestion.options || currentQuestion.question_options || [];
+
     switch (currentQuestion.question_type) {
       case 'rating':
         const maxRating = currentQuestion.max_rating || 5;
         return (
           <div className="space-y-4">
-            <div className="flex justify-center space-x-4">
+            <div className="flex justify-center space-x-2 sm:space-x-4">
               {Array.from({ length: maxRating }, (_, i) => i + 1).map((num) => (
                 <button
                   key={num}
                   onClick={() => setCurrentAnswer(num)}
-                  className={`w-12 h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all ${
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all ${
                     currentAnswer === num
                       ? 'bg-primary text-primary-foreground border-primary shadow-glow'
                       : 'border-primary/20 hover:border-primary/50 hover:bg-primary/5'
@@ -159,7 +132,7 @@ const SurveyApplication = () => {
                 </button>
               ))}
             </div>
-            <div className="flex justify-between text-sm text-muted-foreground">
+            <div className="flex justify-between text-sm text-muted-foreground px-2">
               <span>Muito ruim</span>
               <span>Excelente</span>
             </div>
@@ -169,12 +142,12 @@ const SurveyApplication = () => {
       case 'nps':
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-11 gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               {Array.from({ length: 11 }, (_, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrentAnswer(i)}
-                  className={`h-10 rounded border-2 flex items-center justify-center text-sm font-semibold transition-all ${
+                  className={`w-8 h-8 sm:h-10 sm:w-10 rounded border-2 flex items-center justify-center text-sm font-semibold transition-all ${
                     currentAnswer === i
                       ? 'bg-primary text-primary-foreground border-primary shadow-card'
                       : 'border-primary/20 hover:border-primary/50 hover:bg-primary/5'
@@ -184,7 +157,7 @@ const SurveyApplication = () => {
                 </button>
               ))}
             </div>
-            <div className="flex justify-between text-sm text-muted-foreground">
+            <div className="flex justify-between text-sm text-muted-foreground px-2">
               <span>Não recomendaria</span>
               <span>Recomendaria muito</span>
             </div>
@@ -194,10 +167,10 @@ const SurveyApplication = () => {
       case 'multiple_choice':
         return (
           <div className="space-y-3">
-            {currentQuestion.question_options?.map((option: any) => (
+            {options.map((option: any) => (
               <button
                 key={option.id}
-                onClick={() => setCurrentAnswer(option.option_text)}
+                onClick={() => setCurrentAnswer(option.option_text)} // O backend espera o valor/texto ou ID? O controller aceita string. Vamos mandar o texto.
                 className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
                   currentAnswer === option.option_text
                     ? 'bg-primary/5 border-primary text-primary font-medium'
@@ -239,7 +212,7 @@ const SurveyApplication = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
-        <p className="text-muted-foreground">Carregando...</p>
+        <p className="text-muted-foreground">Carregando pesquisa...</p>
       </div>
     );
   }
@@ -258,11 +231,11 @@ const SurveyApplication = () => {
               Obrigado!
             </h2>
             <p className="text-muted-foreground mb-6">
-              Sua resposta foi enviada com sucesso. Seu feedback é muito importante para nós.
+              Sua resposta foi enviada com sucesso.
             </p>
             <Button 
               onClick={() => navigate('/dashboard')} 
-              variant="hero" 
+              variant="default" 
               className="w-full"
             >
               Voltar ao Dashboard
@@ -276,17 +249,17 @@ const SurveyApplication = () => {
   if (!currentQuestion) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
-        <p className="text-muted-foreground">Nenhuma pergunta encontrada</p>
+        <p className="text-muted-foreground">Nenhuma pergunta encontrada ou pesquisa inválida.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-subtle p-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gradient-subtle p-4 flex flex-col items-center">
+      <div className="w-full max-w-2xl">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">{surveyTitle}</h1>
+        <div className="text-center mb-8 mt-4">
+          <h1 className="text-2xl font-bold text-foreground mb-2">Pesquisa de Satisfação</h1>
           <p className="text-muted-foreground">
             Pergunta {currentQuestionIndex + 1} de {questions.length}
           </p>
@@ -295,11 +268,6 @@ const SurveyApplication = () => {
         {/* Progress Bar */}
         <div className="mb-8">
           <Progress value={progress} className="h-2" />
-          <div className="flex justify-between text-sm text-muted-foreground mt-2">
-            <span>Início</span>
-            <span>{Math.round(progress)}% concluído</span>
-            <span>Fim</span>
-          </div>
         </div>
 
         {/* Question Card */}
@@ -309,8 +277,8 @@ const SurveyApplication = () => {
               {currentQuestion.question_text}
             </CardTitle>
             {currentQuestion.is_required && (
-              <CardDescription className="text-center">
-                * Esta pergunta é obrigatória
+              <CardDescription className="text-center text-destructive/80">
+                * Obrigatória
               </CardDescription>
             )}
           </CardHeader>
@@ -324,7 +292,7 @@ const SurveyApplication = () => {
           <Button
             variant="outline"
             onClick={handlePrevious}
-            disabled={currentQuestionIndex === 0}
+            disabled={currentQuestionIndex === 0 || isSubmitting}
             className="flex items-center"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
@@ -333,31 +301,22 @@ const SurveyApplication = () => {
 
           <Button
             onClick={handleNext}
-            variant="hero"
+            disabled={isSubmitting}
             className="flex items-center"
           >
             {currentQuestionIndex === questions.length - 1 ? (
-              <>
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Finalizar
-              </>
+              isSubmitting ? 'Enviando...' : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Finalizar
+                </>
+              )
             ) : (
               <>
                 Próxima
                 <ChevronRight className="h-4 w-4 ml-2" />
               </>
             )}
-          </Button>
-        </div>
-
-        {/* Back to Dashboard */}
-        <div className="text-center mt-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/dashboard')}
-            className="text-muted-foreground"
-          >
-            Voltar ao Dashboard
           </Button>
         </div>
       </div>

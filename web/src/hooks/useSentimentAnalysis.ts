@@ -1,47 +1,33 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { useState } from 'react';
+import { api } from '@/lib/api'; // O nosso Axios
 
-export const useSentimentAnalysis = (surveyId: string) => {
-  const queryClient = useQueryClient();
+export interface SentimentResult {
+  score: number;
+  sentiment: 'positive' | 'negative' | 'neutral';
+}
 
-  const { data: sentiments, isLoading } = useQuery({
-    queryKey: ['sentiment-analysis', surveyId],
-    queryFn: async () => {
-      if (!surveyId) return null;
+export const useSentimentAnalysis = () => {
+  const [analyzing, setAnalyzing] = useState(false);
 
-      // Fetch sentiment data joined with responses
-     
-    },
-    enabled: !!surveyId,
-  });
+  const analyzeText = async (text: string): Promise<SentimentResult | null> => {
+    if (!text || text.trim().length < 3) return null;
 
-  const analyzeSentiment = useMutation({
-    mutationFn: async (surveyId: string) => {
+    setAnalyzing(true);
+    try {
+      // Chama a nossa nova API Node.js
+      const response = await api.post('/ai/sentiment', { text });
+      return response.data;
       
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['sentiment-analysis', surveyId] });
-     
-     
-    },
-    onError: (error) => {
+    } catch (error) {
       console.error('Error analyzing sentiment:', error);
-      toast.error('Erro ao analisar sentimentos');
+      return { score: 0, sentiment: 'neutral' }; // Fallback seguro
+    } finally {
+      setAnalyzing(false);
     }
-  });
-
-  const processedSentiments = {
-    positive: sentiments?.filter(s => s.sentiment === 'positive').length || 0,
-    neutral: sentiments?.filter(s => s.sentiment === 'neutral').length || 0,
-    negative: sentiments?.filter(s => s.sentiment === 'negative').length || 0,
-    total: sentiments?.length || 0,
   };
 
   return {
-    sentiments,
-    processedSentiments,
-    isLoading,
-    analyzeSentiment: analyzeSentiment.mutate,
-    isAnalyzing: analyzeSentiment.isPending,
+    analyzeText,
+    analyzing
   };
 };
