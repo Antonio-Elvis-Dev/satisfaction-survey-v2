@@ -46,7 +46,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
 import { useSurveys } from '@/hooks/useSurveys';
 import { useQuestions } from '@/hooks/useQuestions';
-import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { SortableQuestion } from '@/components/SortableQuestion';
 
@@ -112,27 +111,9 @@ const CreateSurvey = () => {
       
       setIsLoadingSurvey(true);
       try {
-        const { data: surveyData, error: surveyError } = await supabase
-          .from('surveys')
-          .select('*')
-          .eq('id', editId)
-          .single();
+       
 
-        if (surveyError) throw surveyError;
-
-        setSurveyTitle(surveyData.title);
-        setSurveyDescription(surveyData.description || "");
-
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('questions')
-          .select(`
-            *,
-            question_options (*)
-          `)
-          .eq('survey_id', editId)
-          .order('order_index');
-
-        if (questionsError) throw questionsError;
+        
 
         // Map question types
         const typeMap: Record<string, Question['type']> = {
@@ -142,15 +123,8 @@ const CreateSurvey = () => {
           'nps': 'nps'
         };
 
-        const loadedQuestions: Question[] = questionsData.map((q: any) => ({
-          id: q.id,
-          type: typeMap[q.question_type] || 'short_text',
-          title: q.question_text,
-          required: q.is_required,
-          options: q.question_options?.sort((a: any, b: any) => a.order_index - b.order_index).map((opt: any) => opt.option_text) || [],
-        }));
+        
 
-        setQuestions(loadedQuestions);
       } catch (error: any) {
         toast.error('Erro ao carregar pesquisa: ' + error.message);
         navigate('/surveys');

@@ -12,7 +12,6 @@ import {
   Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useSurveys } from '@/hooks/useSurveys';
 import { api } from '@/lib/api';
 
@@ -107,77 +106,22 @@ const PublicSurvey = () => {
     const loadSurvey = async () => {
       if (!surveyId) return;
 
-      try {
-        // Load survey details
-        const { data: surveyData, error: surveyError } = await supabase
-          .from('surveys')
-          .select('title, status')
-          .eq('id', surveyId)
-          .single();
-
-        if (surveyError) throw surveyError;
-
-        if (surveyData.status !== 'active') {
-          toast.error('Esta pesquisa não está disponível no momento');
-          return;
-        }
-
-        setSurveyTitle(surveyData.title);
+    
+       
 
         // Load questions
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('questions')
-          .select(`
-            *,
-            question_options (*)
-          `)
-          .eq('survey_id', surveyId)
-          .order('order_index');
-
-        if (questionsError) throw questionsError;
-
-        setQuestions(questionsData || []);
+        
 
         // Create anonymous session
-        let { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          const { error: anonErr } = await supabase.auth.signInAnonymously();
-          if (anonErr) throw anonErr;
+       
 
-          ({ data: { session } } = await supabase.auth.getSession());
-
-        }
-
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user?.id) throw new Error("Usuário anônimo não autenticado!");
-
-        const { data: sessionRow, error: sessionError } = await supabase
-          .from('response_sessions')
-          .insert({
-            survey_id: surveyId,
-            respondent_id: user.id,
-          })
+       
         // .select()
         // .single();
 
-        if (sessionError) throw sessionError;
-
-        const { data: sessionList, error: listErr } = await supabase
-          .from('response_sessions')
-          .select('id')
-          .eq('survey_id', surveyId)
-          .eq('respondent_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (listErr) throw listErr;
-        setSessionId(sessionList?.[0]?.id);
-      } catch (error: any) {
-        console.error('Error loading survey:', error);
-        toast.error('Erro ao carregar pesquisa');
-      } finally {
-        setIsLoading(false);
-      }
+      
+       
+      
     };
 
     loadSurvey();
@@ -226,13 +170,7 @@ const PublicSurvey = () => {
         selectedOptionId = option?.id || null;
       }
 
-      await supabase.from('responses').insert({
-        session_id: sessionId,
-        question_id: currentQuestion.id,
-        numeric_response: typeof answer === 'number' ? answer : null,
-        text_response: typeof answer === 'string' ? answer : null,
-        selected_option_id: selectedOptionId,
-      });
+    
     } catch (error) {
       console.error('Error saving response:', error);
     }
@@ -265,19 +203,7 @@ const PublicSurvey = () => {
     const timeSpentSeconds = Math.round((Date.now() - startTime) / 1000);
 
     try {
-      await supabase
-        .from('response_sessions')
-        .update({
-          is_complete: true,
-          completed_at: new Date().toISOString(),
-          time_spent_seconds: timeSpentSeconds,
-        })
-        .eq('id', sessionId);
-
-      // Clear saved progress after successful completion
-      localStorage.removeItem(STORAGE_KEY);
-
-      setIsCompleted(true);
+     
       toast.success('Pesquisa enviada com sucesso!');
     } catch (error) {
       toast.error('Erro ao finalizar pesquisa');

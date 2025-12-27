@@ -44,7 +44,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useSurveys } from '@/hooks/useSurveys';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { SurveysSkeleton } from '@/components/skeletons/SurveysSkeleton';
 

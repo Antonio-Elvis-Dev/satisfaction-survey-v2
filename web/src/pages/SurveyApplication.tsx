@@ -13,7 +13,6 @@ import {
 import { toast } from 'sonner';
 import { useQuestions } from '@/hooks/useQuestions';
 import { useResponses } from '@/hooks/useResponses';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Answer {
   questionId: string;
@@ -37,24 +36,7 @@ const SurveyApplication = () => {
   useEffect(() => {
     if (surveyId) {
       // Load survey details
-      supabase
-        .from('surveys')
-        .select('title')
-        .eq('id', surveyId)
-        .single()
-        .then(({ data }) => {
-          if (data) setSurveyTitle(data.title);
-        });
-
-      // Create session
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        createSession.mutateAsync({
-          survey_id: surveyId,
-          respondent_id: user?.id,
-        }).then((session) => {
-          setSessionId(session.id);
-        });
-      });
+     
     }
   }, [surveyId]);
 
