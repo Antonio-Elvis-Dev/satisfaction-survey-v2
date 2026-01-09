@@ -7,8 +7,7 @@ import { submit } from "./submit";
 import { getStats } from "./get-stats";
 import { deleteSurvey } from "./delete";
 import { analyze } from "./analyze";
-
-
+import { update } from "./update";
 
 export async function surveysRoutes(app: FastifyInstance) {
 
@@ -19,5 +18,6 @@ export async function surveysRoutes(app: FastifyInstance) {
     app.get('/public/surveys/:id', get)
     app.post('/public/surveys/:id/responses', submit)
     app.post('/ai/sentiment', { onRequest: [verifyJWT] }, analyze)
+    app.put('/surveys/:id', { onRequest: [verifyJWT] }, update)
 
 }

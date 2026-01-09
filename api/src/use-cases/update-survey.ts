@@ -6,7 +6,7 @@ interface UpdateSurveyRequest {
     surveyId: string;
     userId: string;
     title: string;
-    description?: string | null;
+    description: string | null;
     questions: {
         id?: string; // Se tiver ID, atualiza. Se não, cria.
         title: string;
@@ -18,7 +18,7 @@ interface UpdateSurveyRequest {
 }
 
 export class UpdateSurveyUseCase {
-    constructor(private surveysRepository: SurveysRepository) {}
+    constructor(private surveysRepository: SurveysRepository) { }
 
     async execute({ surveyId, userId, title, description, questions }: UpdateSurveyRequest) {
         // 1. Verifica se a pesquisa existe (e permissão global ou do usuário)
@@ -53,13 +53,16 @@ export class UpdateSurveyUseCase {
                             order_index: q.orderIndex,
                             // Recriar opções para simplificar (Delete + Create)
                             // Apenas se for múltipla escolha e tiver opções novas
-                            options: q.type === 'multiple_choice' ? {
+                            options: {
                                 deleteMany: {}, // Limpa opções antigas
-                                create: q.options?.map((opt, idx) => ({
-                                    option_text: opt,
-                                    order_index: idx
-                                }))
-                            } : undefined
+                                ...(q.options && q.options.length > 0 && {
+                                    create: q.options?.map((opt, idx) => ({
+                                        option_text: opt,
+                                        order_index: idx
+                                    }))
+                                }),
+
+                            }
                         }
                     });
                 } else {
@@ -71,12 +74,15 @@ export class UpdateSurveyUseCase {
                             question_type: q.type,
                             is_required: q.isRequired,
                             order_index: q.orderIndex,
-                            options: q.options ? {
-                                create: q.options.map((opt, idx) => ({
-                                    option_text: opt,
-                                    order_index: idx
-                                }))
-                            } : undefined
+                            options: {
+                                ...(q.options && q.options.length > 0 && {
+                                    create: q.options?.map((opt, idx) => ({
+                                        option_text: opt,
+                                        order_index: idx
+                                    }))
+                                }),
+
+                            }
                         }
                     });
                 }

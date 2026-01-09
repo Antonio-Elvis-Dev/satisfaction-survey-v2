@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { 
   Plus, 
   Trash2, 
@@ -72,10 +72,11 @@ interface Question {
 const CreateSurvey = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get('edit');
   
-  const { createSurvey, updateSurvey } = useSurveys();
+  const { createSurvey, updateSurvey, getSurveyById } = useSurveys();
+  const {id: editId} = useParams()
   const { createQuestion, createQuestionOption } = useQuestions();
+  
   
   const [surveyTitle, setSurveyTitle] = useState('');
   const [surveyDescription, setSurveyDescription] = useState('');

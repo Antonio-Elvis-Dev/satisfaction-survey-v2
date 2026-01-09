@@ -41,6 +41,7 @@ export class SubmitResponseUseCase {
             //TODO: Usamos o spread operator (...) condicional.
             // Se respondentId for null ou undefined, essa linha é ignorada
             // e a chave 'respondent' nem entra no objeto.
+            
             ...(respondentId && {
                 respondent: {
                     connect: { id: respondentId }

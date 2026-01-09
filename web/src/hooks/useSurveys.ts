@@ -2,11 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { string } from 'zod';
 
 interface CreateSurveyData {
+  id?: string
   title: string
   description?: string | null
   questions: {
+    id?: string
     title: string
     type: string
     is_required: boolean
@@ -14,7 +17,6 @@ interface CreateSurveyData {
     options?: string[]
   }[]
 }
-
 
 export const useSurveys = () => {
   const queryClient = useQueryClient();
@@ -27,7 +29,6 @@ export const useSurveys = () => {
     },
     enabled: true
   });
-
 
 
   const createSurvey = useMutation({
@@ -47,12 +48,25 @@ export const useSurveys = () => {
   });
 
   const updateSurvey = useMutation({
-
+    mutationFn: async ({ id, data }: { id: string; data: CreateSurveyData }) => {
+      await api.put(`/surveys/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['surveys'] });
+      toast.success('Pesquisa atualizada!');
+    },
+    onError: () => {
+      toast.error('Erro ao atualizar pesquisa.');
+    }
   });
-
   const updateSurveyStatus = useMutation({
-
+   
   });
+
+  const getSurveyById = async (id: string) => {
+    const response = await api.get(`/surveys/${id}`)
+    return response.data.survey
+  }
 
   const deleteSurvey = useMutation({
     mutationFn: async (id: string) => {
@@ -77,6 +91,7 @@ export const useSurveys = () => {
     createSurvey,
     updateSurvey,
     updateSurveyStatus,
+    getSurveyById,
     deleteSurvey,
     duplicateSurvey,
   };
