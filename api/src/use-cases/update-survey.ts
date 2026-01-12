@@ -1,6 +1,7 @@
 import { SurveysRepository } from "@/repositories/surveys-repository";
 import { ResourceNotFoundError } from "./erros/resource-not-found-error";
 import { prisma } from "@/lib/prisma";
+import { string } from "zod";
 
 interface UpdateSurveyRequest {
     surveyId: string;
@@ -41,8 +42,19 @@ export class UpdateSurveyUseCase {
             // (Nota: Deletar perguntas exige cuidado extra com as respostas já dadas. 
             // Nesta versão, focamos em Criar/Atualizar).
 
+            const incomingQuestionIds = questions.map(q => q.id)
+                .filter((id): id is string => !!id)
+
+            await tx.question.deleteMany({
+                where: {
+                    survey_id: surveyId,
+                    id: {
+                        notIn: incomingQuestionIds
+                    }
+                }
+            })
             for (const q of questions) {
-                if (q.id && q.id.length > 10) { // Assume UUID válido se tiver ID
+                if (q.id ) { // Assume UUID válido se tiver ID
                     // ATUALIZA PERGUNTA EXISTENTE
                     await tx.question.update({
                         where: { id: q.id },

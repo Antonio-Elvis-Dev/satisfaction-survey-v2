@@ -122,53 +122,6 @@ const Surveys = () => {
     }
   };
 
-  const oldSurveys = [
-    {
-      id: 1,
-      title: 'Satisfação do Cliente - Q3 2024',
-      description: 'Pesquisa trimestral para avaliar a satisfação geral dos clientes',
-      status: 'active',
-      responses: 234,
-      created: '15 Set 2024',
-      lastModified: '2 horas atrás',
-      questions: 8,
-      type: 'CSAT'
-    },
-    {
-      id: 2,
-      title: 'Avaliação de Atendimento',
-      description: 'Feedback sobre o atendimento ao cliente',
-      status: 'active',
-      responses: 89,
-      created: '10 Set 2024',
-      lastModified: '5 horas atrás',
-      questions: 5,
-      type: 'NPS'
-    },
-    {
-      id: 3,
-      title: 'Feedback de Produto',
-      description: 'Avaliação das funcionalidades do produto',
-      status: 'draft',
-      responses: 0,
-      created: '8 Set 2024',
-      lastModified: '1 dia atrás',
-      questions: 12,
-      type: 'Múltipla'
-    },
-    {
-      id: 4,
-      title: 'Pesquisa de Mercado',
-      description: 'Análise de tendências e preferências do mercado',
-      status: 'completed',
-      responses: 156,
-      created: '1 Set 2024',
-      lastModified: '1 semana atrás',
-      questions: 15,
-      type: 'Mista'
-    }
-  ];
-
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       active: { label: 'Ativa', className: 'bg-success/10 text-success' },
