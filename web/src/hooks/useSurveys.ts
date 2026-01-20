@@ -81,6 +81,26 @@ export const useSurveys = () => {
     }
   });
 
+const surveys = useMutation({
+  mutationFn: async (id:string) =>{
+    await api.get(`/surveys/${id}/stats`)
+  }
+})
+  
+  // const { data: surveys, isLoading } = useQuery({
+  //   queryKey: ['surveys'],
+  //   queryFn: async () => {
+  //     const { data, error } = await supabase
+  //       .from('surveys')
+  //       .select('*')
+  //       .order('created_at', { ascending: false });
+      
+  //     if (error) throw error;
+  //     return data as Tables<'surveys'>[];
+  //   },
+  // });
+
+
   const duplicateSurvey = useMutation({
 
   });
@@ -94,5 +114,6 @@ export const useSurveys = () => {
     getSurveyById,
     deleteSurvey,
     duplicateSurvey,
+    surveys
   };
 };

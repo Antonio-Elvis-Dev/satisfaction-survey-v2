@@ -29,7 +29,13 @@ export class GetSurveyStatsUseCase {
                                 text_response: true,
                                 selected_option_id: true,
                             }
-                        }
+                        },
+                    }
+                },
+                response_session: {
+                    select: {
+                        is_complete: true,
+                        id: true
                     }
                 }
             }
@@ -38,6 +44,12 @@ export class GetSurveyStatsUseCase {
         if (!survey) {
             throw new ResourceNotFoundError()
         }
+
+
+        const totalSessions = survey.response_session.length
+        const completedResponses = survey.response_session.filter(s => s.is_complete)
+        const completionRate = totalSessions > 0
+            ? Math.round((completedResponses / totalSessions) * 100) : 0
 
         // 2. Processa as estatísticas pergunta por pergunta
         const stats = survey.question.map(question => {
@@ -114,6 +126,11 @@ export class GetSurveyStatsUseCase {
                 title: survey.title,
                 createdAt: survey.created_at,
                 status: survey.status
+            },
+            metrics: { 
+                totalResponses: totalSessions,
+                completedResponses,
+                completionRate,
             },
             stats
         }

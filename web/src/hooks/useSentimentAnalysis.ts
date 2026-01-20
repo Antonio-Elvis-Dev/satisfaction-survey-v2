@@ -1,33 +1,71 @@
-import { useState } from 'react';
-import { api } from '@/lib/api'; // O nosso Axios
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-export interface SentimentResult {
-  score: number;
-  sentiment: 'positive' | 'negative' | 'neutral';
-}
+export const useSentimentAnalysis = (surveyId: string) => {
+  const queryClient = useQueryClient();
 
-export const useSentimentAnalysis = () => {
-  const [analyzing, setAnalyzing] = useState(false);
+  const { data: sentiments, isLoading } = useQuery({
+    queryKey: ['sentiment-analysis', surveyId],
+    queryFn: async () => {
+      if (!surveyId) return null;
 
-  const analyzeText = async (text: string): Promise<SentimentResult | null> => {
-    if (!text || text.trim().length < 3) return null;
+      // Fetch sentiment data joined with responses
+      const { data, error } = await supabase
+        .from('response_sentiment')
+        .select(`
+          *,
+          responses:response_id (
+            text_response,
+            answered_at
+          )
+        `)
+        .order('processed_at', { ascending: false });
 
-    setAnalyzing(true);
-    try {
-      // Chama a nossa nova API Node.js
-      const response = await api.post('/ai/sentiment', { text });
-      return response.data;
-      
-    } catch (error) {
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!surveyId,
+  });
+
+  const analyzeSentiment = useMutation({
+    mutationFn: async (surveyId: string) => {
+      const { data, error } = await supabase.functions.invoke('analyze-sentiment', {
+        body: { surveyId }
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['sentiment-analysis', surveyId] });
+      const count = data?.analyzed || 0;
+      if (count > 0) {
+        toast.success(`✨ ${count} ${count === 1 ? 'resposta analisada' : 'respostas analisadas'} com sucesso!`, {
+          description: 'A análise de sentimento foi concluída'
+        });
+      } else {
+        toast.info('Nenhuma resposta nova para analisar');
+      }
+    },
+    onError: (error) => {
       console.error('Error analyzing sentiment:', error);
-      return { score: 0, sentiment: 'neutral' }; // Fallback seguro
-    } finally {
-      setAnalyzing(false);
+      toast.error('Erro ao analisar sentimentos');
     }
+  });
+
+  const processedSentiments = {
+    positive: sentiments?.filter(s => s.sentiment === 'positive').length || 0,
+    neutral: sentiments?.filter(s => s.sentiment === 'neutral').length || 0,
+    negative: sentiments?.filter(s => s.sentiment === 'negative').length || 0,
+    total: sentiments?.length || 0,
   };
 
   return {
-    analyzeText,
-    analyzing
+    sentiments,
+    processedSentiments,
+    isLoading,
+    analyzeSentiment: analyzeSentiment.mutate,
+    isAnalyzing: analyzeSentiment.isPending,
   };
 };
