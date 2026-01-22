@@ -1,6 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
+
+
+interface UpdateProfileData{
+  name?: string
+  password?: string
+  avatar_url?: string
+}
+
+
 
 export const useProfile = () => {
   const { user } = useAuth();
@@ -9,7 +19,8 @@ export const useProfile = () => {
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
-     
+     const response = await api.get("/me")
+     return response.data
     },
     enabled: !!user?.id,
   });

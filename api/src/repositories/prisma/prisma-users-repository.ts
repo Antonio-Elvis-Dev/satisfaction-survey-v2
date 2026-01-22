@@ -9,15 +9,30 @@ export class PrismaUsersRepository implements UsersRepository {
         return await prisma.user.findMany()
 
     }
-    async update(id: string, data: Prisma.UserUpdateInput) {
+    async update(id: string, data: { name?: string, password_hash?: string }) {
 
-        return await prisma.user.update({
-            where: {
-                id
-            },
-            data
+        const updateData: Prisma.UserUpdateInput = {}
+
+        if (data.password_hash) {
+            updateData.password_hash = data.password_hash
+        }
+
+        if (data.name) {
+            updateData.profile = {
+                update: {
+                    full_name: data.name
+                }
+            }
+        }
+
+        const user = await prisma.user.update({
+            where: { id },
+            data: updateData,
+            include: {
+                profile: true
+            }
         })
-
+        return user
     }
     async delete(id: string) {
         await prisma.user.delete({
@@ -43,8 +58,8 @@ export class PrismaUsersRepository implements UsersRepository {
             where: {
                 email
             },
-            include:{
-                profile:true
+            include: {
+                profile: true
             }
         })
         return user
