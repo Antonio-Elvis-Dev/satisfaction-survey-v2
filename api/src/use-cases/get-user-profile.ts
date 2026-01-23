@@ -9,7 +9,7 @@ interface GetUserProfileUseCaseRequest {
 interface GetUserProfileUseCaseResponse {
   user: {
     id: string;
-    name: string;
+    full_name: string;
     email: string;
     avatar_url: string | null;
   };
@@ -33,7 +33,7 @@ export class GetUserProfileUseCase {
     return {
       user: {
         id: user.id,
-        name: profile?.full_name ?? '',
+        full_name: profile?.full_name ?? '',
         email: user.email,
         avatar_url: profile?.avatar_url ?? null,
       },

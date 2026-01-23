@@ -5,7 +5,7 @@ export interface UsersRepository {
     findByEmail(email: string): Promise<User | null>
     findByAll(): Promise<User[]>
     create(data:{full_name:string, email:string, password_hash:string}): Promise<User>
-    update(id: string, data: {name?:string, password_hash?:string}): Promise<User>
+    update(id: string, data: {full_name?:string, password_hash?:string}): Promise<User>
     delete(id: string): Promise<void>
 }
 

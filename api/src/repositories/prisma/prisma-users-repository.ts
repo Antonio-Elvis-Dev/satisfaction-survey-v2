@@ -9,7 +9,7 @@ export class PrismaUsersRepository implements UsersRepository {
         return await prisma.user.findMany()
 
     }
-    async update(id: string, data: { name?: string, password_hash?: string }) {
+    async update(id: string, data: { full_name?: string, password_hash?: string }) {
 
         const updateData: Prisma.UserUpdateInput = {}
 
@@ -17,10 +17,10 @@ export class PrismaUsersRepository implements UsersRepository {
             updateData.password_hash = data.password_hash
         }
 
-        if (data.name) {
+        if (data.full_name) {
             updateData.profile = {
                 update: {
-                    full_name: data.name
+                    full_name: data.full_name
                 }
             }
         }

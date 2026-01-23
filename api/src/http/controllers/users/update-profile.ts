@@ -6,11 +6,11 @@ import { ResourceNotFoundError } from "@/use-cases/erros/resource-not-found-erro
 
 export async function updateProfile(request: FastifyRequest, reply: FastifyReply) {
     const updateBodySchema = z.object({
-        name: z.string().optional(),
+        full_name: z.string().optional(),
         password: z.string().min(6).optional(),
     })
 
-    const { name, password } = updateBodySchema.parse(request.body)
+    const { full_name, password } = updateBodySchema.parse(request.body)
     const userId = request.user.sub
 
     const usersRepository = new PrismaUsersRepository()
@@ -18,12 +18,12 @@ export async function updateProfile(request: FastifyRequest, reply: FastifyReply
 
     const data: {
         userId: string
-        name?: string
+        full_name?: string
         password?: string
     } = { userId }
 
 
-    if (name !== undefined) {
+    if (full_name !== undefined) {
 
     }
     if (password !== undefined) {
