@@ -8,7 +8,6 @@ import {
   Users,
   MessageSquare,
   Sparkles,
-  ArrowLeft,
   Frown,
   Smile,
   Download,
@@ -22,7 +21,6 @@ import {
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
-  Tooltip,
   PieChart,
 } from 'recharts';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -31,7 +29,6 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
-import { useSurveys } from '@/hooks/useSurveys';
 import { useSentimentAnalysis } from '@/hooks/useSentimentAnalysis';
 import { toast } from 'sonner';
 
@@ -42,31 +39,17 @@ const Analytics = () => {
   const [searchParams] = useSearchParams();
   const selectedSurveyId = searchParams.get('survey');
 
-  const { metrics, responses, isLoading,analytics } = useAnalytics(selectedSurveyId || '');
-
-  // console.log(selectedSurveyId)
-
-  const { processedSentiments, analyzeSentiment, isAnalyzing, sentiments } = useSentimentAnalysis(selectedSurveyId || '');
+  // 1. TODOS OS HOOKS PRIMEIRO
+  const { metrics, responses, isLoading, analytics } = useAnalytics(selectedSurveyId || '');
+  const { processedSentiments, analyzeSentiment, isAnalyzing } = useSentimentAnalysis(selectedSurveyId || '');
 
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Se não tiver ID selecionado ou estiver carregando
-  if (isLoading) {
-    return <AnalyticsSkeleton />
-  }
-
-  if (!selectedSurveyId || !analytics) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <p className="text-muted-foreground">Selecione uma pesquisa para visualizar os dados.</p>
-        <Button onClick={() => navigate('/dashboard')}>Ir para Dashboard</Button>
-      </div>
-    );
-  }
+  // --- MOVI ESTE USEMEMO PARA CIMA (Antes dos Returns) ---
   const filteredResponses = React.useMemo(() => {
-    if (!responses) return [];
+    if (!responses) return []; // Tratamento seguro se responses for undefined
 
     return responses.filter(r => {
       if (!r.completed_at) return true;
@@ -80,7 +63,7 @@ const Analytics = () => {
 
       if (dateTo) {
         const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999); // Include the entire end date
+        toDate.setHours(23, 59, 59, 999);
         if (responseDate > toDate) return false;
       }
 
@@ -88,6 +71,7 @@ const Analytics = () => {
     });
   }, [responses, dateFrom, dateTo]);
 
+  // --- MOVI ESTE USEMEMO PARA CIMA TAMBÉM ---
   const filteredProcessedData = React.useMemo(() => {
     return {
       satisfactionDistribution: filteredResponses.reduce((acc: any[], r) => {
@@ -115,20 +99,27 @@ const Analytics = () => {
     };
   }, [filteredResponses]);
 
+  // 2. AGORA SIM, AS CONDICIONAIS DE RETORNO
+  if (isLoading) {
+    return <AnalyticsSkeleton />
+  }
+
+  if (!selectedSurveyId || !analytics) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <p className="text-muted-foreground">Selecione uma pesquisa para visualizar os dados.</p>
+        <Button onClick={() => navigate('/dashboard')}>Ir para Dashboard</Button>
+      </div>
+    );
+  }
+
+  // 3. CÁLCULOS DE VARIÁVEIS (NÃO HOOKS) PODEM FICAR AQUI
   const satisfactionData = filteredProcessedData.satisfactionDistribution.map(d => ({
     name: `Nível ${d.value}`,
     value: d.count
   }));
 
   const { stats, survey: selectedSurvey } = analytics;
-
-  // Calculando métricas gerais baseadas nos stats recebidos
-  const totalResponses = stats.length > 0 ? Math.max(...stats.map(s => s.totalResponses)) : 0;
-
-  // Exemplo simples de como extrair NPS se houver perguntas de NPS
-  const npsQuestion = stats.find(s => s.type === 'nps');
-  // Nota: O backend não mandou o Score NPS calculado, apenas os dados do gráfico. 
-  // Idealmente o backend deveria mandar o score, mas vamos exibir o que temos.
   const totalFiltered = filteredResponses.length;
 
   const npsData = [
@@ -145,6 +136,7 @@ const Analytics = () => {
       percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.promoters / totalFiltered) * 100) : 0
     }
   ];
+
   const overallStats = {
     csat: metrics?.csat_score ? Number(metrics.csat_score) : 0,
     nps: metrics?.nps_score || 0,
@@ -180,12 +172,10 @@ const Analytics = () => {
     toast.success('Arquivo CSV exportado com sucesso');
   };
 
-  if (isLoading) {
-    return <AnalyticsSkeleton />;
-  }
-
   return (
     <div className="space-y-6">
+      {/* ... (O RESTO DO JSX PERMANECE IGUAL) ... */}
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

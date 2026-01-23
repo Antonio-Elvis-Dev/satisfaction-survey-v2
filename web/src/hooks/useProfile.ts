@@ -4,8 +4,8 @@ import { toast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 
 
-interface UpdateProfileData{
-  name?: string
+interface UpdateProfileData {
+  full_name?: string
   password?: string
   avatar_url?: string
 }
@@ -19,17 +19,17 @@ export const useProfile = () => {
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
-     const response = await api.get("/me")
-     return response.data
+      const response = await api.get("/me")
+      return response.data
     },
     enabled: !!user?.id,
   });
 
   const updateProfile = useMutation({
-    mutationFn: async (updates: { full_name?: string; avatar_url?: string }) => {
+    mutationFn: async (data: UpdateProfileData) => {
       if (!user?.id) throw new Error('Usuário não autenticado');
+      await api.put("/me", data)
 
-      
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -55,7 +55,7 @@ export const useProfile = () => {
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
       // Upload file to storage
-     
+
 
     },
     onSuccess: () => {

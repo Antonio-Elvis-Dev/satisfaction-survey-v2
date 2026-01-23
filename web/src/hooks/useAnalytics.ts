@@ -18,38 +18,19 @@ interface AnalyticsData {
     status: string;
     createdAt: string;
   };
-   metrics: { // <--- Novo campo
+  metrics: {
     totalResponses: number;
     completedResponses: number;
     completionRate: number;
+    nps_score?: number;
+    csat_score?: number;
   };
-  stats: QuestionStats[];
+  stats: any[];
+  responses: any[];
 }
 
 
 export const useAnalytics = (surveyId: string) => {
-
-  //  const { data: metrics, isLoading: metricsLoading, error: metricsError } = useQuery({
-  //     queryKey: ['survey-metrics', surveyId],
-  //     queryFn: async () => {
-  //       const data = await api.get(`/`)
-
-
-  //       return data || {
-  //         survey_id: surveyId,
-  //         total_responses: 0,
-  //         completed_responses: 0,
-  //         completion_rate: 0,
-  //         average_rating: 0,
-  //         nps_score: 0,
-  //         csat_score: 0,
-  //       };
-  //     },
-  //     enabled: !!surveyId,
-  //   });
-
-
-  /////////////////////////////////////////////////
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['survey-analytics', surveyId],
@@ -64,6 +45,8 @@ export const useAnalytics = (surveyId: string) => {
 
   return {
     analytics: data, // Retorna o objeto completo { survey, stats }
+    metrics: data?.metrics,
+    responses: data?.responses,
     isLoading,
     error
   };

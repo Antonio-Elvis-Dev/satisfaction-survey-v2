@@ -28,6 +28,11 @@ export class GetSurveyStatsUseCase {
                                 numeric_response: true,
                                 text_response: true,
                                 selected_option_id: true,
+                                session: {
+                                    select: {
+                                        completed_at: true
+                                    }
+                                }
                             }
                         },
                     }
@@ -51,43 +56,45 @@ export class GetSurveyStatsUseCase {
         const completionRate = totalSessions > 0
             ? Math.round((completedResponses / totalSessions) * 100) : 0
 
+        const allResponses: any[] = [];
         // 2. Processa as estatísticas pergunta por pergunta
         const stats = survey.question.map(question => {
             const totalResponses = question.responses.length;
-
-            // Estrutura base para o retorno
             let chartData: any[] = [];
             let textResponses: string[] = [];
 
-            // Lógica para Múltipla Escolha (Gráfico de Pizza/Barra)
+            // Popula a lista plana de respostas para o frontend
+            question.responses.forEach(r => {
+                allResponses.push({
+                    id: r.id,
+                    question_text: question.question_text,
+                    question_type: question.question_type,
+                    numeric_response: r.numeric_response,
+                    text_response: r.text_response,
+                    completed_at: r.session?.completed_at,
+                    selected_option_id: r.selected_option_id,
+                    // Busca texto da opção se for multipla escolha
+                    selected_option_text: question.options.find(o => o.id === r.selected_option_id)?.option_text
+                });
+            });
+
+            // Lógica dos Gráficos (Mantém a mesma de antes)
             if (question.question_type === 'multiple_choice') {
-                // Inicializa contadores para cada opção (para mostrar mesmo as que têm 0 votos)
                 const counts = new Map<string, number>();
                 question.options.forEach(opt => counts.set(opt.id, 0));
-
-                // Conta os votos
                 question.responses.forEach(r => {
                     if (r.selected_option_id && counts.has(r.selected_option_id)) {
                         counts.set(r.selected_option_id, counts.get(r.selected_option_id)! + 1);
                     }
                 });
-
-                // Formata para o Frontend (Recharts gosta de { name, value })
                 chartData = question.options.map(opt => ({
                     name: opt.option_text,
                     value: counts.get(opt.id) || 0
                 }));
-            }
-
-            // Lógica para Rating/NPS (Histograma ou Média)
-            else if (['rating', 'nps'].includes(question.question_type)) {
-                // Agrupamos por valor (ex: quantos deram nota 1, nota 2...)
+            } else if (['rating', 'nps'].includes(question.question_type)) {
                 const counts = new Map<number, number>();
-
-                // Define o range (1 a 5 ou 0 a 10)
                 const max = question.question_type === 'nps' ? 10 : (question.max_rating || 5);
                 const min = question.question_type === 'nps' ? 0 : 1;
-
                 for (let i = min; i <= max; i++) counts.set(i, 0);
 
                 question.responses.forEach(r => {
@@ -95,19 +102,15 @@ export class GetSurveyStatsUseCase {
                         counts.set(r.numeric_response, (counts.get(r.numeric_response) || 0) + 1);
                     }
                 });
-
                 chartData = Array.from(counts.entries()).map(([key, value]) => ({
                     name: String(key),
                     value
                 }));
-            }
-
-            // Lógica para Texto (Lista simples)
-            else {
+            } else {
                 textResponses = question.responses
                     .map(r => r.text_response)
-                    .filter((t): t is string => t !== null) // Remove nulos
-                    .slice(0, 10); // Pega apenas os 10 últimos para não pesar
+                    .filter((t): t is string => t !== null)
+                    .slice(0, 10);
             }
 
             return {
@@ -127,12 +130,16 @@ export class GetSurveyStatsUseCase {
                 createdAt: survey.created_at,
                 status: survey.status
             },
-            metrics: { 
+            metrics: {
                 totalResponses: totalSessions,
                 completedResponses,
                 completionRate,
+                // Placeholders para NPS/CSAT (cálculo real pode ser adicionado depois)
+                nps_score: 0,
+                csat_score: 0
             },
-            stats
+            stats,
+            responses: allResponses // <--- Novo Campo!
         }
     }
 }
