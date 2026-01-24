@@ -23,24 +23,24 @@ export class GetDashboardStatsUseCase {
     async execute({ userId, days }: GetDashboardStatsRequest): Promise<DashboardStatsResponse> {
         const activeSurveys = await prisma.survey.count({
             where: {
-                created_by_id: userId,
+                // created_by_id: userId,
                 status: 'active'
             }
         })
 
         const totalResponses = await prisma.responseSession.count({
             where: {
-                survey: {
-                    created_by_id: userId
-                },
+                // survey: {
+                //     created_by_id: userId
+                // },
                 is_complete: true
             }
         })
 
         const recentSurveys = await prisma.survey.findMany({
-            where: {
-                created_by_id: userId
-            },
+            // where: {
+            //     created_by_id: userId
+            // },
             orderBy: { updated_at: 'desc' },
             take: 3,
             include: {
@@ -62,7 +62,7 @@ export class GetDashboardStatsUseCase {
 
         const sessions = await prisma.responseSession.findMany({
             where: {
-                survey: { created_by_id: userId },
+                // survey: { created_by_id: userId },
                 completed_at: {
                     gte: startDate
                 }

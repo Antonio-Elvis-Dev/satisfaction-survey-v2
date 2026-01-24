@@ -1,7 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
+
+
+interface UpdateProfileData {
+  full_name?: string
+  password?: string
+  avatar_url?: string
+}
+
+
 
 export const useProfile = () => {
   const { user } = useAuth();
@@ -10,30 +19,17 @@ export const useProfile = () => {
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
-      if (!user?.id) return null;
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-      return data;
+      const response = await api.get("/me")
+      return response.data
     },
     enabled: !!user?.id,
   });
 
   const updateProfile = useMutation({
-    mutationFn: async (updates: { full_name?: string; avatar_url?: string }) => {
+    mutationFn: async (data: UpdateProfileData) => {
       if (!user?.id) throw new Error('Usuário não autenticado');
+      await api.put("/me", data)
 
-      const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id);
-
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
@@ -59,26 +55,8 @@ export const useProfile = () => {
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
       // Upload file to storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      // Update profile with new avatar URL
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      return publicUrl;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });

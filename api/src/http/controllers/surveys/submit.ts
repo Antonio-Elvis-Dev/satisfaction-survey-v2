@@ -1,9 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { PrismaResponseSessionsRepository } from "@/repositories/prisma/prisma-response-sessions-repository";
-import { PrismaQuestionsRepository } from "@/repositories/prisma/prisma-questions-repository";
-import { SubmitResponseUseCase } from "@/use-cases/submit-response";
-import { makeSubmitResponseUseCase } from "@/use-cases/factories/make-submit-response";
+
+import { makeSubmitResponseUseCase } from "@/use-cases/factories/make-submit-response-use-case";
 
 export async function submit(request: FastifyRequest, reply: FastifyReply) {
     const submitParamSchema = z.object({

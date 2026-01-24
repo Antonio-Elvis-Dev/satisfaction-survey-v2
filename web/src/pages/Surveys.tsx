@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, 
-  PlusCircle, 
-  FileText, 
-  Users, 
+import {
+  Search,
+  PlusCircle,
+  FileText,
+  Users,
   Calendar,
   MoreHorizontal,
   Edit,
@@ -44,7 +44,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useSurveys } from '@/hooks/useSurveys';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { SurveysSkeleton } from '@/components/skeletons/SurveysSkeleton';
 
@@ -58,23 +57,13 @@ const Surveys = () => {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedSurvey, setSelectedSurvey] = useState<{ id: string; title: string } | null>(null);
   const [questionsCount, setQuestionsCount] = React.useState<Record<string, number>>({});
-  const { surveys: surveysData, isLoading, deleteSurvey, duplicateSurvey, updateSurveyStatus } = useSurveys();
+  const { fetchData: surveysData, isLoading, deleteSurvey, duplicateSurvey, updateSurveyStatus } = useSurveys();
 
   React.useEffect(() => {
     const fetchQuestionCounts = async () => {
-      if (!surveysData) return;
-      
-      const counts: Record<string, number> = {};
-      for (const survey of surveysData) {
-        const { count } = await supabase
-          .from('questions')
-          .select('*', { count: 'exact', head: true })
-          .eq('survey_id', survey.id);
-        counts[survey.id] = count || 0;
-      }
-      setQuestionsCount(counts);
+
     };
-    
+
     fetchQuestionCounts();
   }, [surveysData]);
 
@@ -82,7 +71,9 @@ const Surveys = () => {
     return <SurveysSkeleton />;
   }
 
-  const surveys = surveysData?.map(s => ({
+  const rawSurveys = surveysData?.surveys || surveysData || [];
+
+  const surveys = rawSurveys?.map(s => ({
     ...s,
     responses: s.total_responses || 0,
     created: new Date(s.created_at).toLocaleDateString('pt-BR'),
@@ -125,58 +116,14 @@ const Surveys = () => {
   const handleStatusChange = async (id: string, status: 'active' | 'paused' | 'completed') => {
     try {
       await updateSurveyStatus.mutateAsync({ id, status });
-      toast.success(`Pesquisa ${status === 'active' ? 'ativada' : status === 'paused' ? 'pausada' : 'finalizada'} com sucesso`);
+
+      const mapStatus = { active: 'ativado', paused: "pausado", completed: 'finalizada' }
+
+      toast.success(`Pesquisa ${mapStatus[status]} com sucesso`);
     } catch (error) {
       toast.error('Erro ao atualizar status da pesquisa');
     }
   };
-
-  const oldSurveys = [
-    {
-      id: 1,
-      title: 'Satisfação do Cliente - Q3 2024',
-      description: 'Pesquisa trimestral para avaliar a satisfação geral dos clientes',
-      status: 'active',
-      responses: 234,
-      created: '15 Set 2024',
-      lastModified: '2 horas atrás',
-      questions: 8,
-      type: 'CSAT'
-    },
-    {
-      id: 2,
-      title: 'Avaliação de Atendimento',
-      description: 'Feedback sobre o atendimento ao cliente',
-      status: 'active',
-      responses: 89,
-      created: '10 Set 2024',
-      lastModified: '5 horas atrás',
-      questions: 5,
-      type: 'NPS'
-    },
-    {
-      id: 3,
-      title: 'Feedback de Produto',
-      description: 'Avaliação das funcionalidades do produto',
-      status: 'draft',
-      responses: 0,
-      created: '8 Set 2024',
-      lastModified: '1 dia atrás',
-      questions: 12,
-      type: 'Múltipla'
-    },
-    {
-      id: 4,
-      title: 'Pesquisa de Mercado',
-      description: 'Análise de tendências e preferências do mercado',
-      status: 'completed',
-      responses: 156,
-      created: '1 Set 2024',
-      lastModified: '1 semana atrás',
-      questions: 15,
-      type: 'Mista'
-    }
-  ];
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -185,7 +132,7 @@ const Surveys = () => {
       completed: { label: 'Finalizada', className: 'bg-muted text-muted-foreground' },
       paused: { label: 'Pausada', className: 'bg-destructive/10 text-destructive' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return (
       <Badge className={config.className}>
@@ -197,9 +144,9 @@ const Surveys = () => {
   const filteredSurveys = surveys.filter(survey => {
     const matchesSearch = survey.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (survey.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || survey.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -323,7 +270,7 @@ const Surveys = () => {
                       <QrCode className="h-4 w-4 mr-2" />
                       Gerar QR Code
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       className="text-destructive"
                       onClick={() => handleDelete(survey.id)}
                     >
@@ -334,7 +281,7 @@ const Surveys = () => {
                 </DropdownMenu>
               </div>
             </CardHeader>
-            
+
             <CardContent className="space-y-4">
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4 text-center">
@@ -373,9 +320,9 @@ const Surveys = () => {
               {/* Actions */}
               <div className="flex space-x-2 pt-2">
                 {survey.status === 'active' && (
-                  <Button 
-                    variant="default" 
-                    size="sm" 
+                  <Button
+                    variant="default"
+                    size="sm"
                     className="flex-1"
                     onClick={() => navigate(`/survey/${survey.id}`)}
                   >
@@ -383,9 +330,9 @@ const Surveys = () => {
                     Aplicar
                   </Button>
                 )}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="flex-1"
                   onClick={() => navigate(`/analytics?survey=${survey.id}`)}
                 >
@@ -402,7 +349,7 @@ const Surveys = () => {
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious 
+              <PaginationPrevious
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
@@ -419,7 +366,7 @@ const Surveys = () => {
               </PaginationItem>
             ))}
             <PaginationItem>
-              <PaginationNext 
+              <PaginationNext
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />

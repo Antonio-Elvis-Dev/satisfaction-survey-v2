@@ -5,12 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  Plus, 
-  Trash2, 
-  Save, 
-  Eye, 
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  Plus,
+  Trash2,
+  Save,
+  Eye,
   GripVertical,
   Type,
   CheckSquare,
@@ -42,11 +42,8 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
 import { useSurveys } from '@/hooks/useSurveys';
-import { useQuestions } from '@/hooks/useQuestions';
-import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
 import { SortableQuestion } from '@/components/SortableQuestion';
 
@@ -70,14 +67,25 @@ interface Question {
   options?: string[];
 }
 
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback para navegadores antigos ou ambiente inseguro (http via IP)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 const CreateSurvey = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const editId = searchParams.get('edit');
-  
-  const { createSurvey, updateSurvey } = useSurveys();
-  const { createQuestion, createQuestionOption } = useQuestions();
-  
+
+  const { createSurvey, updateSurvey, getSurveyById } = useSurveys();
+  const editId = searchParams.get('edit')
+
   const [surveyTitle, setSurveyTitle] = useState('');
   const [surveyDescription, setSurveyDescription] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -94,12 +102,12 @@ const CreateSurvey = () => {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     if (over && active.id !== over.id) {
       setQuestions((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
-        
+
         return arrayMove(items, oldIndex, newIndex);
       });
     }
@@ -107,60 +115,36 @@ const CreateSurvey = () => {
 
   // Load survey for editing
   useEffect(() => {
-    const loadSurvey = async () => {
-      if (!editId) return;
-      
-      setIsLoadingSurvey(true);
-      try {
-        const { data: surveyData, error: surveyError } = await supabase
-          .from('surveys')
-          .select('*')
-          .eq('id', editId)
-          .single();
-
-        if (surveyError) throw surveyError;
-
-        setSurveyTitle(surveyData.title);
-        setSurveyDescription(surveyData.description || "");
-
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('questions')
-          .select(`
-            *,
-            question_options (*)
-          `)
-          .eq('survey_id', editId)
-          .order('order_index');
-
-        if (questionsError) throw questionsError;
-
-        // Map question types
-        const typeMap: Record<string, Question['type']> = {
-          'text': 'short_text',
-          'multiple_choice': 'multiple_choice',
-          'rating': 'rating',
-          'nps': 'nps'
-        };
-
-        const loadedQuestions: Question[] = questionsData.map((q: any) => ({
-          id: q.id,
-          type: typeMap[q.question_type] || 'short_text',
-          title: q.question_text,
-          required: q.is_required,
-          options: q.question_options?.sort((a: any, b: any) => a.order_index - b.order_index).map((opt: any) => opt.option_text) || [],
-        }));
-
-        setQuestions(loadedQuestions);
-      } catch (error: any) {
-        toast.error('Erro ao carregar pesquisa: ' + error.message);
-        navigate('/surveys');
-      } finally {
-        setIsLoadingSurvey(false);
-      }
-    };
-
-    loadSurvey();
-  }, [editId, navigate]);
+   if (editId) {
+      const loadData = async () => {
+        try {
+          const survey = await getSurveyById(editId);
+          setSurveyTitle(survey.title);
+          setSurveyDescription(survey.description || '');
+          
+          // Mapeamento das perguntas
+          const mappedQuestions = survey.question.map((q: any) => ({
+             id: q.id, 
+             title: q.question_text,
+             type: q.question_type,
+             required: q.is_required,
+             options: q.options 
+                ? q.options
+                    .sort((a: any, b: any) => a.order_index - b.order_index)
+                    .map((o: any) => o.option_text)
+                : []
+          }));
+          
+          mappedQuestions.sort((a: any, b: any) => a.order_index - b.order_index);
+          setQuestions(mappedQuestions);
+        } catch (error) {
+          console.error(error);
+          toast.error("Erro ao carregar pesquisa");
+        }
+      };
+      loadData();
+    }
+  }, [editId]);
 
   const questionTypes = [
     { value: 'short_text', label: 'Resposta Curta', icon: Type },
@@ -170,7 +154,7 @@ const CreateSurvey = () => {
     { value: 'long_text', label: 'Campo Aberto', icon: MessageCircle },
   ];
 
-  const addQuestion = (type: string) => {
+  const handleAddQuestion = (type: string) => {
     const newQuestion: Question = {
       id: Date.now().toString(),
       type: type as Question['type'],
@@ -178,7 +162,13 @@ const CreateSurvey = () => {
       required: false,
       options: type === 'multiple_choice' ? ['Opção 1', 'Opção 2'] : undefined
     };
-    setQuestions([...questions, newQuestion]);
+    setQuestions([...questions, {
+      id: `new-${generateUUID()}`,
+      title: '',
+      type: 'short_text',
+      required: false,
+      options: []
+    }]);
   };
 
   const updateQuestion = (id: string, updates: Partial<Question>) => {
@@ -214,7 +204,7 @@ const CreateSurvey = () => {
     }
   };
 
- const handleSave = async () => {
+  const handleSave = async () => {
     // 1. Validações Zod (mantém as que já tens)
     try {
       surveySchema.parse({ title: surveyTitle, description: surveyDescription });
@@ -233,30 +223,34 @@ const CreateSurvey = () => {
     // ... (validações das perguntas continuam aqui) ...
 
     setIsSaving(true);
-    
+
     try {
-        // 2. Mapeamento de Dados (O segredo para resolver o erro de tipo!) 🗝️
-        const surveyPayload = {
-            title: surveyTitle,
-            description: surveyDescription || null,
-            // Transformamos cada pergunta do state para o formato da API
-            questions: questions.map((q, index) => ({
-                title: q.title,
-                type: q.type, 
-                is_required: q.required, // Renomeia: required -> isRequired
-                order_index: index,      // Adiciona: index do array -> orderIndex
-                options: q.type === 'multiple_choice' ? q.options : []
-            }))
-        };
+      // 2. Mapeamento de Dados (O segredo para resolver o erro de tipo!) 🗝️
+      const surveyPayload = {
+        title: surveyTitle,
+        description: surveyDescription || null,
+        // Transformamos cada pergunta do state para o formato da API
+        questions: questions.map((q, index) => ({
+          id: q.id.startsWith('new-') ? undefined : q.id,
+          title: q.title,
+          type: q.type,
+          is_required: q.required,
+          order_index: index,
+          options: q.type === 'multiple_choice' ? q.options : []
+        }))
+      };
 
-        if (editId) {
-            toast.info("Edição em breve...");
-        } else {
-            // Agora passamos o objeto transformado (surveyPayload), não o state bruto
-            await createSurvey.mutateAsync(surveyPayload);
-        }
+      if (editId) {
+        await updateSurvey.mutateAsync({ id: editId, data: surveyPayload })
+      } else {
+        // Agora passamos o objeto transformado (surveyPayload), não o state bruto
+        await createSurvey.mutateAsync({
+          ...surveyPayload,
+          questions: surveyPayload.questions.map(q => ({ ...q, id: undefined }))
+        });
+      }
 
-        navigate('/surveys');
+      navigate('/surveys');
     } catch (error: any) {
       console.error('Error saving survey:', error);
       // O toast de erro já é tratado no hook useSurveys
@@ -361,7 +355,7 @@ const CreateSurvey = () => {
             {questions.map((question, index) => {
               const IconComponent = getQuestionTypeIcon(question.type);
               const typeLabel = questionTypes.find(t => t.value === question.type)?.label || '';
-              
+
               return (
                 <SortableQuestion
                   key={question.id}
@@ -392,7 +386,7 @@ const CreateSurvey = () => {
                   <Button
                     key={type.value}
                     variant="outline"
-                    onClick={() => addQuestion(type.value)}
+                    onClick={() => handleAddQuestion(type.value)}
                     className="h-auto p-4 flex flex-col space-y-2"
                   >
                     <type.icon className="h-6 w-6 text-primary" />

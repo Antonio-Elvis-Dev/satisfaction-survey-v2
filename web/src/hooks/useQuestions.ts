@@ -1,63 +1,36 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import type { TablesInsert } from '@/integrations/supabase/types';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 
 export const useQuestions = (surveyId?: string) => {
-  const queryClient = useQueryClient();
-
   const { data: questions, isLoading } = useQuery({
-    queryKey: ['questions', surveyId],
+    queryKey: ['public-survey-questions', surveyId],
     queryFn: async () => {
       if (!surveyId) return [];
       
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`
-          *,
-          question_options(*)
-        `)
-        .eq('survey_id', surveyId)
-        .order('order_index', { ascending: true });
-      
-      if (error) throw error;
-      return data;
+      try {
+        // Usa a rota PÚBLICA que criamos no backend
+        const response = await api.get(`/public/surveys/${surveyId}`);
+        const survey = response.data.survey;
+
+        // Retorna as perguntas ordenadas
+        // O backend retorna 'question' (do Prisma), mapeamos se necessário
+        if (survey && survey.question) {
+            return survey.question.sort((a: any, b: any) => a.order_index - b.order_index);
+        }
+        
+        return [];
+      } catch (error) {
+        console.error("Erro ao buscar perguntas:", error);
+        return [];
+      }
     },
     enabled: !!surveyId,
-  });
-
-  const createQuestion = useMutation({
-    mutationFn: async (question: TablesInsert<'questions'>) => {
-      const { data, error } = await supabase
-        .from('questions')
-        .insert(question)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['questions', surveyId] });
-    },
-  });
-
-  const createQuestionOption = useMutation({
-    mutationFn: async (option: TablesInsert<'question_options'>) => {
-      const { data, error } = await supabase
-        .from('question_options')
-        .insert(option)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
+    retry: false
   });
 
   return {
     questions,
     isLoading,
-    createQuestion,
-    createQuestionOption,
+    // Removemos createQuestion/Option pois a edição agora é feita via useSurveys/Update
   };
 };

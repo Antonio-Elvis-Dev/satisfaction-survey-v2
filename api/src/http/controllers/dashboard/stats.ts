@@ -1,8 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { PrismaSurveyRepository } from "@/repositories/prisma/prisma-survey-repository";
-import { GetDashboardStatsUseCase } from "@/use-cases/get-dashboard-stats";
-import { makeGetDashboardStatsUseCase } from "@/use-cases/factories/make-get-dashboard-stats";
+
+import { makeGetDashboardStatsUseCase } from "@/use-cases/factories/make-get-dashboard-stats-use-case";
 
 export async function stats(request: FastifyRequest, reply: FastifyReply) {
     const statsQuerySchema = z.object({

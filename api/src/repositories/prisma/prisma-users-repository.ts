@@ -9,15 +9,30 @@ export class PrismaUsersRepository implements UsersRepository {
         return await prisma.user.findMany()
 
     }
-    async update(id: string, data: Prisma.UserUpdateInput) {
+    async update(id: string, data: { full_name?: string, password_hash?: string }) {
 
-        return await prisma.user.update({
-            where: {
-                id
-            },
-            data
+        const updateData: Prisma.UserUpdateInput = {}
+
+        if (data.password_hash) {
+            updateData.password_hash = data.password_hash
+        }
+
+        if (data.full_name) {
+            updateData.profile = {
+                update: {
+                    full_name: data.full_name
+                }
+            }
+        }
+
+        const user = await prisma.user.update({
+            where: { id },
+            data: updateData,
+            include: {
+                profile: true
+            }
         })
-
+        return user
     }
     async delete(id: string) {
         await prisma.user.delete({
@@ -32,6 +47,14 @@ export class PrismaUsersRepository implements UsersRepository {
         const user = await prisma.user.findUnique({
             where: {
                 id
+            },
+            include: {
+                profile: true,
+                roles: {
+                    select: {
+                        role: true
+                    }
+                }
             }
         })
         return user
@@ -43,8 +66,9 @@ export class PrismaUsersRepository implements UsersRepository {
             where: {
                 email
             },
-            include:{
-                profile:true
+            include: {
+                profile: true,
+                roles: true
             }
         })
         return user

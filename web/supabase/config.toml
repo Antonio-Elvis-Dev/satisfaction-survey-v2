@@ -1,4 +1,0 @@
-project_id = "xftouoqplrpjfjaxwejg"
-
-[functions.analyze-sentiment]
-verify_jwt = true

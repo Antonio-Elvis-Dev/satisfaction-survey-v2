@@ -1,24 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  MessageSquare,
-  Download,
-  Filter,
-  PieChart,
-  Calendar
-} from 'lucide-react';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+  BarChart3,
+  TrendingUp,
+  Users,
+  MessageSquare,
+  Sparkles,
+  Frown,
+  Smile,
+  Download,
+  Meh,
+  Calendar as CalendarIcon,
+  Eye
+} from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -26,21 +22,18 @@ import {
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
+  PieChart,
 } from 'recharts';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import { useAnalytics } from '@/hooks/useAnalytics';
-import { useSurveys } from '@/hooks/useSurveys';
+import { AnalyticsSkeleton } from '@/components/skeletons/AnalyticsSkeleton';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
 import { useSentimentAnalysis } from '@/hooks/useSentimentAnalysis';
 import { toast } from 'sonner';
-import { AnalyticsSkeleton } from '@/components/skeletons/AnalyticsSkeleton';
-import { Smile, Meh, Frown, Sparkles } from 'lucide-react';
+import { ResponseDetailsModal } from '@/components/ResponseDetailsModal';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -48,45 +41,43 @@ const Analytics = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const selectedSurveyId = searchParams.get('survey');
-  
-  const { surveys } = useSurveys();
-  const { metrics, responses, processedData, isLoading } = useAnalytics(selectedSurveyId || '');
 
-  // console.log(selectedSurveyId)
+  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { processedSentiments, analyzeSentiment, isAnalyzing, sentiments } = useSentimentAnalysis(selectedSurveyId || '');
-  
-  const selectedSurvey = surveys?.find(s => s.id === selectedSurveyId);
-  
+  // 1. TODOS OS HOOKS PRIMEIRO
+  const { metrics, responses, isLoading, analytics } = useAnalytics(selectedSurveyId || '');
+  const { processedSentiments, analyzeSentiment, isAnalyzing } = useSentimentAnalysis(selectedSurveyId || '');
+
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // Apply date filters to responses
+
+  // --- MOVI ESTE USEMEMO PARA CIMA (Antes dos Returns) ---
   const filteredResponses = React.useMemo(() => {
-    if (!responses) return [];
-    
+    if (!responses) return []; // Tratamento seguro se responses for undefined
+
     return responses.filter(r => {
       if (!r.completed_at) return true;
-      
+
       const responseDate = new Date(r.completed_at);
-      
+
       if (dateFrom) {
         const fromDate = new Date(dateFrom);
         if (responseDate < fromDate) return false;
       }
-      
+
       if (dateTo) {
         const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999); // Include the entire end date
+        toDate.setHours(23, 59, 59, 999);
         if (responseDate > toDate) return false;
       }
-      
+
       return true;
     });
   }, [responses, dateFrom, dateTo]);
 
-  // Recalculate processed data with filtered responses
+  // --- MOVI ESTE USEMEMO PARA CIMA TAMBÉM ---
   const filteredProcessedData = React.useMemo(() => {
     return {
       satisfactionDistribution: filteredResponses.reduce((acc: any[], r) => {
@@ -100,7 +91,7 @@ const Analytics = () => {
         }
         return acc;
       }, []),
-      
+
       npsDistribution: filteredResponses.reduce((acc: any, r) => {
         if (r.question_type === 'nps' && r.numeric_response !== null) {
           if (r.numeric_response <= 6) acc.detractors++;
@@ -109,10 +100,78 @@ const Analytics = () => {
         }
         return acc;
       }, { detractors: 0, passives: 0, promoters: 0 }),
-      
+
       openResponses: filteredResponses.filter(r => r.text_response) || []
     };
   }, [filteredResponses]);
+
+
+  // Agrupa respostas individuais em "Sessões" (Pessoas)
+  const sessionList = React.useMemo(() => {
+    const groups: Record<string, any> = {};
+
+    filteredResponses.forEach(r => {
+      if (!r.session_id) return;
+
+      if (!groups[r.session_id]) {
+        groups[r.session_id] = {
+          id: r.session_id,
+          date: r.completed_at,
+          answers: []
+        };
+      }
+      groups[r.session_id].answers.push(r);
+    });
+
+    // Converte para array e ordena por data (mais recente primeiro)
+    return Object.values(groups).sort((a: any, b: any) =>
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [filteredResponses]);
+  // 2. AGORA SIM, AS CONDICIONAIS DE RETORNO
+  if (isLoading) {
+    return <AnalyticsSkeleton />
+  }
+
+  if (!selectedSurveyId || !analytics) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <p className="text-muted-foreground">Selecione uma pesquisa para visualizar os dados.</p>
+        <Button onClick={() => navigate('/dashboard')}>Ir para Dashboard</Button>
+      </div>
+    );
+  }
+
+  // 3. CÁLCULOS DE VARIÁVEIS (NÃO HOOKS) PODEM FICAR AQUI
+  const satisfactionData = filteredProcessedData.satisfactionDistribution.map(d => ({
+    name: `Nível ${d.value}`,
+    value: d.count
+  }));
+
+  const { stats, survey: selectedSurvey } = analytics;
+  const totalFiltered = filteredResponses.length;
+
+  const npsData = [
+    {
+      range: '0-6 (Detratores)', count: filteredProcessedData.npsDistribution.detractors,
+      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.detractors / totalFiltered) * 100) : 0
+    },
+    {
+      range: '7-8 (Neutros)', count: filteredProcessedData.npsDistribution.passives,
+      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.passives / totalFiltered) * 100) : 0
+    },
+    {
+      range: '9-10 (Promotores)', count: filteredProcessedData.npsDistribution.promoters,
+      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.promoters / totalFiltered) * 100) : 0
+    }
+  ];
+
+  const overallStats = {
+    csat: metrics?.csat_score ? Number(metrics.csat_score) : 0,
+    nps: metrics?.nps_score || 0,
+    totalResponses: metrics?.totalResponses || 0,
+    completionRate: metrics?.completionRate ? Number(metrics.completionRate) : 0,
+  };
 
   const exportToCSV = () => {
     if (!filteredResponses || filteredResponses.length === 0) {
@@ -130,7 +189,7 @@ const Analytics = () => {
       ])
     ];
 
-    const csvContent = csvData.map(row => 
+    const csvContent = csvData.map(row =>
       row.map(cell => `"${cell}"`).join(',')
     ).join('\n');
 
@@ -142,45 +201,10 @@ const Analytics = () => {
     toast.success('Arquivo CSV exportado com sucesso');
   };
 
-  if (isLoading) {
-    return <AnalyticsSkeleton />;
-  }
-
-  if (!selectedSurveyId || !selectedSurvey) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <p className="text-muted-foreground mb-4">Selecione uma pesquisa para visualizar analytics</p>
-          <Button onClick={() => navigate('/surveys')}>Ver Pesquisas</Button>
-        </div>
-      </div>
-    );
-  }
-
-  const overallStats = {
-    csat: metrics?.csat_score ? Number(metrics.csat_score) : 0,
-    nps: metrics?.nps_score || 0,
-    totalResponses: metrics?.total_responses || 0,
-    completionRate: metrics?.completion_rate ? Number(metrics.completion_rate) : 0,
-  };
-
-  const satisfactionData = filteredProcessedData.satisfactionDistribution.map(d => ({
-    name: `Nível ${d.value}`,
-    value: d.count
-  }));
-
-  const totalFiltered = filteredResponses.length;
-  const npsData = [
-    { range: '0-6 (Detratores)', count: filteredProcessedData.npsDistribution.detractors, 
-      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.detractors / totalFiltered) * 100) : 0 },
-    { range: '7-8 (Neutros)', count: filteredProcessedData.npsDistribution.passives,
-      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.passives / totalFiltered) * 100) : 0 },
-    { range: '9-10 (Promotores)', count: filteredProcessedData.npsDistribution.promoters,
-      percentage: totalFiltered ? Math.round((filteredProcessedData.npsDistribution.promoters / totalFiltered) * 100) : 0 }
-  ];
-
   return (
     <div className="space-y-6">
+      {/* ... (O RESTO DO JSX PERMANECE IGUAL) ... */}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -193,7 +217,7 @@ const Analytics = () => {
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline">
-                <Calendar className="h-4 w-4 mr-2" />
+                <CalendarIcon className="h-4 w-4 mr-2" />
                 Período
               </Button>
             </PopoverTrigger>
@@ -225,9 +249,9 @@ const Analytics = () => {
                   Aplicar Filtros
                 </Button>
                 {(dateFrom || dateTo) && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
+                  <Button
+                    variant="outline"
+                    className="w-full"
                     onClick={() => {
                       setDateFrom('');
                       setDateTo('');
@@ -337,11 +361,10 @@ const Analytics = () => {
                     <span className="text-muted-foreground">{item.count} ({item.percentage}%)</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full ${
-                        index === 0 ? 'bg-destructive' : 
+                    <div
+                      className={`h-2 rounded-full ${index === 0 ? 'bg-destructive' :
                         index === 1 ? 'bg-warning' : 'bg-success'
-                      }`}
+                        }`}
                       style={{ width: `${item.percentage}%` }}
                     />
                   </div>
@@ -457,7 +480,7 @@ const Analytics = () => {
               Respostas Abertas
             </CardTitle>
             <CardDescription>
-              Feedback qualitativo dos respondentes 
+              Feedback qualitativo dos respondentes
               {(dateFrom || dateTo) && ' (filtrado)'}
             </CardDescription>
           </CardHeader>
@@ -466,23 +489,23 @@ const Analytics = () => {
               {filteredProcessedData.openResponses
                 .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
                 .map((item, index) => (
-                <div key={index} className="p-4 border border-border rounded-lg">
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-sm text-muted-foreground">
-                      {item.completed_at ? new Date(item.completed_at).toLocaleDateString('pt-BR') : 'N/A'}
-                    </span>
+                  <div key={index} className="p-4 border border-border rounded-lg">
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-sm text-muted-foreground">
+                        {item.completed_at ? new Date(item.completed_at).toLocaleDateString('pt-BR') : 'N/A'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground italic">"{item.text_response}"</p>
                   </div>
-                  <p className="text-sm text-foreground italic">"{item.text_response}"</p>
-                </div>
-              ))}
+                ))}
             </div>
-            
+
             {/* Pagination for open responses */}
             {filteredProcessedData.openResponses.length > ITEMS_PER_PAGE && (
               <Pagination className="mt-6">
                 <PaginationContent>
                   <PaginationItem>
-                    <PaginationPrevious 
+                    <PaginationPrevious
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                     />
@@ -499,7 +522,7 @@ const Analytics = () => {
                     </PaginationItem>
                   ))}
                   <PaginationItem>
-                    <PaginationNext 
+                    <PaginationNext
                       onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProcessedData.openResponses.length / ITEMS_PER_PAGE), p + 1))}
                       className={currentPage === Math.ceil(filteredProcessedData.openResponses.length / ITEMS_PER_PAGE) ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                     />
@@ -510,7 +533,74 @@ const Analytics = () => {
           </CardContent>
         </Card>
       )}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Users className="h-5 w-5 mr-2 text-primary" />
+            Respostas Individuais ({sessionList.length})
+          </CardTitle>
+          <CardDescription>
+            Lista de sessões completas de resposta
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Resumo</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sessionList.slice(0, 10).map((session: any) => (
+                  <TableRow key={session.id}>
+                    <TableCell>
+                      {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : 'N/A'} 
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {session.date ? new Date(session.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : ''}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {session.answers.length} perguntas respondidas
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSession(session);
+                          setIsModalOpen(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver Detalhes
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {sessionList.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Nenhuma resposta encontrada neste período.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      <ResponseDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        sessionData={selectedSession}
+      />
     </div>
+
   );
 };
 
