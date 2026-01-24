@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, 
-  PlusCircle, 
-  FileText, 
-  Users, 
+import {
+  Search,
+  PlusCircle,
+  FileText,
+  Users,
   Calendar,
   MoreHorizontal,
   Edit,
@@ -61,9 +61,9 @@ const Surveys = () => {
 
   React.useEffect(() => {
     const fetchQuestionCounts = async () => {
-      
+
     };
-    
+
     fetchQuestionCounts();
   }, [surveysData]);
 
@@ -116,7 +116,10 @@ const Surveys = () => {
   const handleStatusChange = async (id: string, status: 'active' | 'paused' | 'completed') => {
     try {
       await updateSurveyStatus.mutateAsync({ id, status });
-      toast.success(`Pesquisa ${status === 'active' ? 'ativada' : status === 'paused' ? 'pausada' : 'finalizada'} com sucesso`);
+
+      const mapStatus = { active: 'ativado', paused: "pausado", completed: 'finalizada' }
+
+      toast.success(`Pesquisa ${mapStatus[status]} com sucesso`);
     } catch (error) {
       toast.error('Erro ao atualizar status da pesquisa');
     }
@@ -129,7 +132,7 @@ const Surveys = () => {
       completed: { label: 'Finalizada', className: 'bg-muted text-muted-foreground' },
       paused: { label: 'Pausada', className: 'bg-destructive/10 text-destructive' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return (
       <Badge className={config.className}>
@@ -141,9 +144,9 @@ const Surveys = () => {
   const filteredSurveys = surveys.filter(survey => {
     const matchesSearch = survey.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (survey.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || survey.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -267,7 +270,7 @@ const Surveys = () => {
                       <QrCode className="h-4 w-4 mr-2" />
                       Gerar QR Code
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       className="text-destructive"
                       onClick={() => handleDelete(survey.id)}
                     >
@@ -278,7 +281,7 @@ const Surveys = () => {
                 </DropdownMenu>
               </div>
             </CardHeader>
-            
+
             <CardContent className="space-y-4">
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4 text-center">
@@ -317,9 +320,9 @@ const Surveys = () => {
               {/* Actions */}
               <div className="flex space-x-2 pt-2">
                 {survey.status === 'active' && (
-                  <Button 
-                    variant="default" 
-                    size="sm" 
+                  <Button
+                    variant="default"
+                    size="sm"
                     className="flex-1"
                     onClick={() => navigate(`/survey/${survey.id}`)}
                   >
@@ -327,9 +330,9 @@ const Surveys = () => {
                     Aplicar
                   </Button>
                 )}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="flex-1"
                   onClick={() => navigate(`/analytics?survey=${survey.id}`)}
                 >
@@ -346,7 +349,7 @@ const Surveys = () => {
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious 
+              <PaginationPrevious
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />
@@ -363,7 +366,7 @@ const Surveys = () => {
               </PaginationItem>
             ))}
             <PaginationItem>
-              <PaginationNext 
+              <PaginationNext
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
               />

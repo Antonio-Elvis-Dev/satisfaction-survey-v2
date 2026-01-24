@@ -11,7 +11,7 @@ import {
   CheckCircle, 
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useQuestions } from '@/hooks/useQuestions';
+import { useQuestions } from '@/hooks/useQuestions'; 
 import { api } from '@/lib/api'; // Importando api diretamente para o submit
 
 interface Answer {

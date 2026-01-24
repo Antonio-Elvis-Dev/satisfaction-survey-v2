@@ -1,36 +1,41 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { TablesInsert } from '@/integrations/supabase/types';
+import { useState } from 'react';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
 
-export const useResponses = (surveyId: string) => {
-  const queryClient = useQueryClient();
+export const useResponses = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const createSession = useMutation({
-    mutationFn: async (data: { survey_id: string; respondent_id?: string }) => {
+  const submitResponse = async (surveyId: string, answers: Record<string, any>, timeSeconds: number) => {
+    setIsSubmitting(true);
+    try {
+      // Formatamos as respostas para o formato que o backend espera
+      // O frontend geralmente tem um objeto { "question_id": "resposta" }
+      // O backend espera um array: [ { questionId: "...", value: "..." } ]
       
-    },
-  });
+      const responsesArray = Object.entries(answers).map(([questionId, value]) => ({
+        questionId,
+        value
+      }));
 
-  const submitResponse = useMutation({
-    mutationFn: async (response: TablesInsert<'responses'>) => {
-    
-    },
-  });
+      await api.post(`/public/surveys/${surveyId}/responses`, {
+        answers: responsesArray,
+        timeSpentSeconds: timeSeconds
+      });
 
-  const completeSession = useMutation({
-    mutationFn: async (data: { 
-      sessionId: string; 
-      timeSpentSeconds: number;
-    }) => {
-      
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['survey-responses', surveyId] });
-    },
-  });
+      toast.success('Obrigado! Sua resposta foi enviada.');
+      return true;
+
+    } catch (error) {
+      console.error('Error submitting response:', error);
+      toast.error('Erro ao enviar resposta. Tente novamente.');
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return {
-    createSession,
     submitResponse,
-    completeSession,
+    isSubmitting
   };
 };

@@ -48,8 +48,13 @@ export class PrismaUsersRepository implements UsersRepository {
             where: {
                 id
             },
-            include:{
-                profile: true
+            include: {
+                profile: true,
+                roles: {
+                    select: {
+                        role: true
+                    }
+                }
             }
         })
         return user
@@ -62,7 +67,8 @@ export class PrismaUsersRepository implements UsersRepository {
                 email
             },
             include: {
-                profile: true
+                profile: true,
+                roles: true
             }
         })
         return user

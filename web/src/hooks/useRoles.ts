@@ -1,20 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
 
 export type AppRole = 'admin' | 'manager' | 'viewer';
 
-interface UserRole {
+export interface User {
   id: string;
-  user_id: string;
+  email: string;
+  name?: string;
   role: AppRole;
-  created_at: string;
-}
-
-interface UserWithRole {
-  id: string;
-  email?: string;
-  full_name?: string;
-  role: AppRole;
+  createdAt: string;
 }
 
 export const useRoles = () => {
@@ -24,35 +19,25 @@ export const useRoles = () => {
   const { data: currentUserRole, isLoading: isLoadingRole } = useQuery({
     queryKey: ['current-user-role'],
     queryFn: async () => {
-    
+      const response = await api.get('/me');
+      return response.data.role;
     },
   });
 
-  const { data: allUsers, isLoading: isLoadingUsers } = useQuery({
+  const { data: users, isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users-with-roles'],
     queryFn: async () => {
-      // Buscar todos os usuários do auth
-     
-
-      // Verificar se é admin
-      // const { data: roleData } = await supabase
-      //   .from('user_roles')
-      //   .select('role')
-      //   .eq('user_id', currentUser.)
-      //   .single();
-
-      // if (roleData?.role !== 'admin') return [];
-
-      // Buscar profiles com roles
-     
-      // Combinar dados
-    }
+      const response = await api.get<User[]>('/users');
+      return response.data;
+    },
+    enabled: currentUserRole === 'admin'
   });
 
   const updateUserRole = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
-      // Deletar role existente
-      
+      // 🔹 Correção: Implementação da chamada à API
+      // Certifique-se que seu backend tem essa rota (PATCH ou PUT)
+      await api.patch(`/users/${userId}/role`, { role: newRole });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
@@ -71,16 +56,16 @@ export const useRoles = () => {
     },
   });
 
-  // const isAdmin = currentUserRole === 'admin';
-  // const isManager = currentUserRole === 'admin' || currentUserRole === 'manager';
+  const isAdmin = currentUserRole === 'admin';
+  const isManager = currentUserRole === 'admin' || currentUserRole === 'manager';
 
   return {
     currentUserRole,
     isLoadingRole,
-    allUsers,
+    users,
     isLoadingUsers,
     updateUserRole,
-    // isAdmin,
-    // isManager,
+    isAdmin,
+    isManager,
   };
 };

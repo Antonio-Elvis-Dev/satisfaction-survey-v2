@@ -13,11 +13,12 @@ export async function update(request: FastifyRequest, reply: FastifyReply) {
         title: z.string().min(3),
         description: z.string().nullable(),
         questions: z.array(z.object({
-            id: z.string(), // ID opcional (novo vs existente)
-            title: z.string(),
+            id: z.string().optional(), // ID opcional (novo vs existente)
+            title: z.string().optional(),
+            question_text: z.string().optional(),
             type: z.enum(['short_text', 'long_text', 'multiple_choice', 'rating', 'nps']),
-            isRequired: z.boolean(),
-            orderIndex: z.number(),
+            is_required: z.boolean(),
+            order_index: z.number(),
             options: z.array(z.string()).optional()
         }))
     })
@@ -34,9 +35,10 @@ export async function update(request: FastifyRequest, reply: FastifyReply) {
         const formattedQuestions = questions.map(q => ({
             title: q.title,
             type: q.type,
-            isRequired: q.isRequired,
-            orderIndex: q.orderIndex,
+            is_required: q.is_required,
+            order_index: q.order_index,
             options: q.options ?? [],
+            question_text: q.question_text,
 
             ...(q.id ? { id: q.id } : {})
 
@@ -48,7 +50,7 @@ export async function update(request: FastifyRequest, reply: FastifyReply) {
             userId,
             title,
             description,
-            questions: formattedQuestions
+            questions: formattedQuestions as any
         })
 
         return reply.status(204).send()

@@ -12,7 +12,8 @@ import {
   Smile,
   Download,
   Meh,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Eye
 } from 'lucide-react';
 import {
   BarChart,
@@ -31,6 +32,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Label } from '@/components/ui/label';
 import { useSentimentAnalysis } from '@/hooks/useSentimentAnalysis';
 import { toast } from 'sonner';
+import { ResponseDetailsModal } from '@/components/ResponseDetailsModal';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -38,6 +41,9 @@ const Analytics = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const selectedSurveyId = searchParams.get('survey');
+
+  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 1. TODOS OS HOOKS PRIMEIRO
   const { metrics, responses, isLoading, analytics } = useAnalytics(selectedSurveyId || '');
@@ -99,6 +105,29 @@ const Analytics = () => {
     };
   }, [filteredResponses]);
 
+
+  // Agrupa respostas individuais em "Sessões" (Pessoas)
+  const sessionList = React.useMemo(() => {
+    const groups: Record<string, any> = {};
+
+    filteredResponses.forEach(r => {
+      if (!r.session_id) return;
+
+      if (!groups[r.session_id]) {
+        groups[r.session_id] = {
+          id: r.session_id,
+          date: r.completed_at,
+          answers: []
+        };
+      }
+      groups[r.session_id].answers.push(r);
+    });
+
+    // Converte para array e ordena por data (mais recente primeiro)
+    return Object.values(groups).sort((a: any, b: any) =>
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [filteredResponses]);
   // 2. AGORA SIM, AS CONDICIONAIS DE RETORNO
   if (isLoading) {
     return <AnalyticsSkeleton />
@@ -140,8 +169,8 @@ const Analytics = () => {
   const overallStats = {
     csat: metrics?.csat_score ? Number(metrics.csat_score) : 0,
     nps: metrics?.nps_score || 0,
-    totalResponses: metrics?.total_responses || 0,
-    completionRate: metrics?.completion_rate ? Number(metrics.completion_rate) : 0,
+    totalResponses: metrics?.totalResponses || 0,
+    completionRate: metrics?.completionRate ? Number(metrics.completionRate) : 0,
   };
 
   const exportToCSV = () => {
@@ -175,7 +204,7 @@ const Analytics = () => {
   return (
     <div className="space-y-6">
       {/* ... (O RESTO DO JSX PERMANECE IGUAL) ... */}
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -504,7 +533,74 @@ const Analytics = () => {
           </CardContent>
         </Card>
       )}
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Users className="h-5 w-5 mr-2 text-primary" />
+            Respostas Individuais ({sessionList.length})
+          </CardTitle>
+          <CardDescription>
+            Lista de sessões completas de resposta
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Resumo</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sessionList.slice(0, 10).map((session: any) => (
+                  <TableRow key={session.id}>
+                    <TableCell>
+                      {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : 'N/A'} 
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {session.date ? new Date(session.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : ''}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {session.answers.length} perguntas respondidas
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSession(session);
+                          setIsModalOpen(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver Detalhes
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {sessionList.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Nenhuma resposta encontrada neste período.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      <ResponseDetailsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        sessionData={selectedSession}
+      />
     </div>
+
   );
 };
 

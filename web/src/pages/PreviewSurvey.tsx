@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, ArrowRight, CheckCircle, Eye, Copy } from 'lucide-react';
-import { useQuestions } from '@/hooks/useQuestions';
 import { useSurveys } from '@/hooks/useSurveys';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -17,14 +16,51 @@ const PreviewSurvey = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const surveyId = searchParams.get('id');
-  
-  const { surveys } = useSurveys();
-  const { questions, isLoading } = useQuestions(surveyId || '');
-  
-  const survey = surveys?.find(s => s.id === surveyId);
-  
+
+  const { surveys, getSurveyById } = useSurveys();
+
+  const [survey, setSurvey] = useState<any>(null);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [previewAnswers, setPreviewAnswers] = useState<Record<string, string | number>>({});
+
+
+  useEffect(() => {
+    const loadSurvey = async () => {
+      if (!surveyId) return;
+      setIsLoading(true);
+      try {
+        const data = await getSurveyById(surveyId);
+        setSurvey(data);
+
+        // Mapeia e ordena as perguntas
+        const mappedQuestions = data.question ? data.question.map((q: any) => ({
+          id: q.id,
+          question_text: q.question_text,
+          question_type: q.question_type,
+          is_required: q.is_required,
+          max_rating: q.max_rating,
+          max_length: q.max_length,
+          order_index: q.order_index,
+          question_options: q.options
+            ? q.options.sort((a: any, b: any) => a.order_index - b.order_index)
+            : []
+        })) : [];
+
+        mappedQuestions.sort((a: any, b: any) => a.order_index - b.order_index);
+        setQuestions(mappedQuestions);
+      } catch (error) {
+        console.error("Erro ao carregar preview", error);
+        toast.error("Erro ao carregar pesquisa");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSurvey();
+  }, [surveyId]);
 
   if (isLoading) {
     return (
@@ -125,8 +161,8 @@ const PreviewSurvey = () => {
 
       case 'multiple_choice':
         return (
-          <RadioGroup 
-            value={getCurrentAnswer()?.toString()} 
+          <RadioGroup
+            value={getCurrentAnswer()?.toString()}
             onValueChange={(value) => setCurrentAnswer(value)}
           >
             <div className="space-y-3">

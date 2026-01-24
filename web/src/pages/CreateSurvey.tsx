@@ -42,10 +42,8 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { toast } from 'sonner';
 import { useSurveys } from '@/hooks/useSurveys';
-import { useQuestions } from '@/hooks/useQuestions';
 import { z } from 'zod';
 import { SortableQuestion } from '@/components/SortableQuestion';
 
@@ -67,6 +65,18 @@ interface Question {
   title: string;
   required: boolean;
   options?: string[];
+}
+
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback para navegadores antigos ou ambiente inseguro (http via IP)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
 const CreateSurvey = () => {
@@ -125,7 +135,7 @@ const CreateSurvey = () => {
                 : []
           }));
           
-          mappedQuestions.sort((a: any, b: any) => a.orderIndex - b.orderIndex);
+          mappedQuestions.sort((a: any, b: any) => a.order_index - b.order_index);
           setQuestions(mappedQuestions);
         } catch (error) {
           console.error(error);
@@ -153,7 +163,7 @@ const CreateSurvey = () => {
       options: type === 'multiple_choice' ? ['Opção 1', 'Opção 2'] : undefined
     };
     setQuestions([...questions, {
-      id: `new-${crypto.randomUUID()}`,
+      id: `new-${generateUUID()}`,
       title: '',
       type: 'short_text',
       required: false,

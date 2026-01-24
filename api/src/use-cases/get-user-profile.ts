@@ -12,6 +12,7 @@ interface GetUserProfileUseCaseResponse {
     full_name: string;
     email: string;
     avatar_url: string | null;
+    role: string
   };
 }
 
@@ -26,6 +27,9 @@ export class GetUserProfileUseCase {
     const user = await this.usersRepository.findById(userId);
     const profile = await this.profileRepository.findByUserId(userId);
 
+    const userWithRoles = user as any;
+    const role = userWithRoles.roles?.[0]?.role ?? 'viewer';
+
     if (!user) {
       throw new ResourceNotFoundError();
     }
@@ -36,6 +40,7 @@ export class GetUserProfileUseCase {
         full_name: profile?.full_name ?? '',
         email: user.email,
         avatar_url: profile?.avatar_url ?? null,
+        role
       },
     };
   }

@@ -25,11 +25,14 @@ export class GetSurveyStatsUseCase {
                         // Trazemos as respostas para contar (apenas os campos necessários)
                         responses: {
                             select: {
+                                id:true,
                                 numeric_response: true,
                                 text_response: true,
                                 selected_option_id: true,
+                                // response_session_id: true,
                                 session: {
                                     select: {
+                                        id:true,
                                         completed_at: true
                                     }
                                 }
@@ -52,7 +55,7 @@ export class GetSurveyStatsUseCase {
 
 
         const totalSessions = survey.response_session.length
-        const completedResponses = survey.response_session.filter(s => s.is_complete)
+        const completedResponses = survey.response_session.filter(s => s.is_complete).length ?? 0
         const completionRate = totalSessions > 0
             ? Math.round((completedResponses / totalSessions) * 100) : 0
 
@@ -67,6 +70,7 @@ export class GetSurveyStatsUseCase {
             question.responses.forEach(r => {
                 allResponses.push({
                     id: r.id,
+                    session_id: r.session?.id,
                     question_text: question.question_text,
                     question_type: question.question_type,
                     numeric_response: r.numeric_response,

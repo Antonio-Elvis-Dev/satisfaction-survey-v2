@@ -12,8 +12,8 @@ interface UpdateSurveyRequest {
         id?: string; // Se tiver ID, atualiza. Se não, cria.
         title: string;
         type: 'short_text' | 'long_text' | 'multiple_choice' | 'rating' | 'nps';
-        isRequired: boolean;
-        orderIndex: number;
+        is_required: boolean;
+        order_index: number;
         options?: string[];
     }[];
 }
@@ -61,8 +61,8 @@ export class UpdateSurveyUseCase {
                         data: {
                             question_text: q.title,
                             question_type: q.type,
-                            is_required: q.isRequired,
-                            order_index: q.orderIndex,
+                            is_required: q.is_required,
+                            order_index: q.order_index,
                             // Recriar opções para simplificar (Delete + Create)
                             // Apenas se for múltipla escolha e tiver opções novas
                             options: {
@@ -84,8 +84,8 @@ export class UpdateSurveyUseCase {
                             survey_id: surveyId,
                             question_text: q.title,
                             question_type: q.type,
-                            is_required: q.isRequired,
-                            order_index: q.orderIndex,
+                            is_required: q.is_required,
+                            order_index: q.order_index,
                             options: {
                                 ...(q.options && q.options.length > 0 && {
                                     create: q.options?.map((opt, idx) => ({

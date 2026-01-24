@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { string } from 'zod';
 
 interface CreateSurveyData {
   id?: string
@@ -59,12 +57,28 @@ export const useSurveys = () => {
       toast.error('Erro ao atualizar pesquisa.');
     }
   });
+
   const updateSurveyStatus = useMutation({
-   
+    mutationFn: async ({ id, status }: { id: string; status: 'active' | 'paused' | 'completed' }) => {
+      // Chama a rota PATCH que criamos
+      await api.patch(`/surveys/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      // Atualiza a lista na tela para refletir a mudança de ícone/cor imediatamente
+      queryClient.invalidateQueries({ queryKey: ['surveys'] });
+      // Se estiver dentro de uma pesquisa específica, invalida ela também
+      queryClient.invalidateQueries({ queryKey: ['survey'] }); 
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error('Erro ao atualizar status da pesquisa.');
+    }
   });
 
+ 
+
   const getSurveyById = async (id: string) => {
-    const response = await api.get(`/surveys/${id}`)
+    const response = await api.get(`/public/surveys/${id}`)
     return response.data.survey
   }
 
@@ -87,19 +101,6 @@ const surveys = useMutation({
   }
 })
   
-  // const { data: surveys, isLoading } = useQuery({
-  //   queryKey: ['surveys'],
-  //   queryFn: async () => {
-  //     const { data, error } = await supabase
-  //       .from('surveys')
-  //       .select('*')
-  //       .order('created_at', { ascending: false });
-      
-  //     if (error) throw error;
-  //     return data as Tables<'surveys'>[];
-  //   },
-  // });
-
 
   const duplicateSurvey = useMutation({
 
