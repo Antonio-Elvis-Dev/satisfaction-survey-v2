@@ -160,15 +160,9 @@ const CreateSurvey = () => {
       type: type as Question['type'],
       title: '',
       required: false,
-      options: type === 'multiple_choice' ? ['Opção 1', 'Opção 2'] : undefined
+      options: type === 'multiple_choice' ? ['Opção 1', 'Opção 2'] : []
     };
-    setQuestions([...questions, {
-      id: `new-${generateUUID()}`,
-      title: '',
-      type: 'short_text',
-      required: false,
-      options: []
-    }]);
+    setQuestions([...questions, newQuestion])
   };
 
   const updateQuestion = (id: string, updates: Partial<Question>) => {

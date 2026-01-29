@@ -19,10 +19,13 @@ export class PrismaSurveyRepository implements SurveysRepository {
                             orderBy: {
                                 order_index: 'asc'
                             }
-                        }
+                        },
+                    
                     }
+
                 }
-            }
+            },
+            
         })
 
     }

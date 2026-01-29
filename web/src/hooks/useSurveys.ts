@@ -67,7 +67,7 @@ export const useSurveys = () => {
       // Atualiza a lista na tela para refletir a mudança de ícone/cor imediatamente
       queryClient.invalidateQueries({ queryKey: ['surveys'] });
       // Se estiver dentro de uma pesquisa específica, invalida ela também
-      queryClient.invalidateQueries({ queryKey: ['survey'] }); 
+      queryClient.invalidateQueries({ queryKey: ['survey'] });
     },
     onError: (error) => {
       console.error(error);
@@ -75,7 +75,7 @@ export const useSurveys = () => {
     }
   });
 
- 
+
 
   const getSurveyById = async (id: string) => {
     const response = await api.get(`/public/surveys/${id}`)
@@ -95,16 +95,28 @@ export const useSurveys = () => {
     }
   });
 
-const surveys = useMutation({
-  mutationFn: async (id:string) =>{
-    await api.get(`/surveys/${id}/stats`)
-  }
-})
-  
+  const surveys = useMutation({
+    mutationFn: async (id: string) => {
+      await api.get(`/surveys/${id}/stats`)
+    }
+  })
+
 
   const duplicateSurvey = useMutation({
-
+    mutationFn: async (id: string) => {
+      // Chama a rota POST que criamos
+      await api.post(`/surveys/${id}/duplicate`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['surveys'] });
+      toast.success('Pesquisa duplicada com sucesso!');
+    },
+    onError: (error: any) => {
+      console.error("Erro detalhado:", error.response?.data || error);
+      toast.error('Erro ao duplicar pesquisa.');
+    }
   });
+
 
   return {
     fetchData,
