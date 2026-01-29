@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -13,7 +14,8 @@ import {
   Download,
   Meh,
   Calendar as CalendarIcon,
-  Eye
+  Eye,
+  Bot
 } from 'lucide-react';
 import {
   BarChart,
@@ -34,6 +36,9 @@ import { useSentimentAnalysis } from '@/hooks/useSentimentAnalysis';
 import { toast } from 'sonner';
 import { ResponseDetailsModal } from '@/components/ResponseDetailsModal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { api } from '@/lib/api';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialogHeader } from '@/components/ui/alert-dialog';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -41,6 +46,10 @@ const Analytics = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const selectedSurveyId = searchParams.get('survey');
+
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   const [selectedSession, setSelectedSession] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -200,7 +209,24 @@ const Analytics = () => {
     link.click();
     toast.success('Arquivo CSV exportado com sucesso');
   };
+  const handleGenerateAiInsight = async (id:string) => {
+    if (!id) return;
+    setIsAiLoading(true);
+    setAiAnalysis(null); // Limpa anterior
+    setIsAiModalOpen(true); // Abre o modal já com loading
 
+    try {
+      const response = await api.post<{ analysis: string }>(`/surveys/${id}/ai-analysis`);
+      setAiAnalysis(response.data.analysis);
+      toast.success("Análise gerada com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao conectar com a Inteligência Artificial.");
+      setIsAiModalOpen(false); // Fecha se der erro
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
   return (
     <div className="space-y-6">
       {/* ... (O RESTO DO JSX PERMANECE IGUAL) ... */}
@@ -391,7 +417,7 @@ const Analytics = () => {
               </div>
               <Button
                 onClick={() => {
-                  analyzeSentiment(selectedSurveyId || '');
+                  handleGenerateAiInsight(selectedSurveyId || '');
                   toast.info('Iniciando análise de sentimento...');
                 }}
                 disabled={isAnalyzing}
@@ -557,9 +583,9 @@ const Analytics = () => {
                 {sessionList.slice(0, 10).map((session: any) => (
                   <TableRow key={session.id}>
                     <TableCell>
-                      {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : 'N/A'} 
+                      {session.date ? new Date(session.date).toLocaleDateString('pt-BR') : 'N/A'}
                       <span className="text-xs text-muted-foreground ml-2">
-                        {session.date ? new Date(session.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : ''}
+                        {session.date ? new Date(session.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -568,8 +594,8 @@ const Analytics = () => {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => {
                           setSelectedSession(session);
@@ -599,6 +625,34 @@ const Analytics = () => {
         onClose={() => setIsModalOpen(false)}
         sessionData={selectedSession}
       />
+
+      <Dialog open={isAiModalOpen} onOpenChange={setIsAiModalOpen}>
+    <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <AlertDialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl text-primary">
+                <Bot className="w-8 h-8 text-purple-600" />
+                Consultor Virtual IA
+            </DialogTitle>
+            <DialogDescription>
+                Análise qualitativa baseada nas respostas dos seus clientes.
+            </DialogDescription>
+        </AlertDialogHeader>
+
+        <div className="mt-4 space-y-4">
+            {isAiLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                    <p className="text-muted-foreground animate-pulse">Lendo as respostas e gerando insights...</p>
+                </div>
+            ) : (
+                <div className="prose prose-slate dark:prose-invert max-w-none p-4 bg-muted/30 rounded-lg">
+                    {/* Renderiza o Markdown bonito */}
+                    <ReactMarkdown>{aiAnalysis || ''}</ReactMarkdown>
+                </div>
+            )}
+        </div>
+    </DialogContent>
+</Dialog>
     </div>
 
   );

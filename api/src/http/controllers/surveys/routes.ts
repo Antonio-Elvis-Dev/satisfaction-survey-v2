@@ -9,6 +9,8 @@ import { deleteSurvey } from "./delete";
 import { analyze } from "./analyze";
 import { update } from "./update";
 import { updateStatus } from "./update-status";
+import { duplicate } from "./duplicate";
+import { getAiAnalysis } from "./get-ai-analysis";
 
 export async function surveysRoutes(app: FastifyInstance) {
 
@@ -22,4 +24,6 @@ export async function surveysRoutes(app: FastifyInstance) {
     app.put('/surveys/:id', { onRequest: [verifyJWT] }, update)
 
     app.patch('/surveys/:id/status', { onRequest: [verifyJWT] }, updateStatus)
+    app.post('/surveys/:id/duplicate', { onRequest: [verifyJWT] }, duplicate)
+    app.post('/surveys/:id/ai-analysis', { onRequest: [verifyJWT] }, getAiAnalysis)
 }

@@ -94,12 +94,9 @@ const Surveys = () => {
   };
 
   const handleDuplicate = async (id: string) => {
-    try {
+    
       await duplicateSurvey.mutateAsync(id);
-      toast.success('Pesquisa duplicada com sucesso');
-    } catch (error) {
-      toast.error('Erro ao duplicar pesquisa');
-    }
+    
   };
 
   const handleCopyLink = (id: string) => {

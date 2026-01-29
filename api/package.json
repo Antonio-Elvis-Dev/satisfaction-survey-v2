@@ -34,16 +34,21 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^3.0.16",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",
     "@fastify/jwt": "^10.0.0",
+    "@google/genai": "^1.38.0",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-pg": "^6.17.1",
     "@prisma/client": "^6.16.2",
     "@types/supertest": "^6.0.3",
+    "ai": "^6.0.56",
     "bcryptjs": "^3.0.2",
     "dayjs": "^1.11.18",
     "dotenv": "^17.2.2",
     "fastify": "^5.6.0",
+    "openai": "^6.16.0",
     "sentiment": "^5.0.2",
     "zod": "^4.1.5"
   }
