@@ -36,10 +36,10 @@ const PublicSurvey = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  
+
   const [surveyTitle, setSurveyTitle] = useState('Pesquisa de Satisfação');
   const [questions, setQuestions] = useState<Question[]>([]);
-  
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [startTime] = useState(Date.now());
@@ -70,7 +70,7 @@ const PublicSurvey = () => {
         }));
 
         setQuestions(loadedQuestions);
-        
+
         // Tenta recuperar progresso salvo localmente
         const savedProgress = localStorage.getItem(STORAGE_KEY);
         if (savedProgress) {
@@ -80,7 +80,7 @@ const PublicSurvey = () => {
             setAnswers(parsed.answers);
             // Opcional: restaurar o índice da pergunta ou começar do zero
             if (typeof parsed.currentQuestionIndex === 'number') {
-               setCurrentQuestionIndex(parsed.currentQuestionIndex);
+              setCurrentQuestionIndex(parsed.currentQuestionIndex);
             }
             toast.info('Seu progresso anterior foi restaurado.');
           }
@@ -201,11 +201,10 @@ const PublicSurvey = () => {
                 <button
                   key={num}
                   onClick={() => setCurrentAnswer(num)}
-                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all ${
-                    currentAnswer === num
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-all ${currentAnswer === num
                       ? 'bg-primary text-primary-foreground border-primary shadow-glow'
                       : 'border-primary/20 hover:border-primary/50 hover:bg-primary/5'
-                  }`}
+                    }`}
                 >
                   {num}
                 </button>
@@ -226,11 +225,10 @@ const PublicSurvey = () => {
                 <button
                   key={i}
                   onClick={() => setCurrentAnswer(i)}
-                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded border-2 flex items-center justify-center text-sm font-semibold transition-all ${
-                    currentAnswer === i
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded border-2 flex items-center justify-center text-sm font-semibold transition-all ${currentAnswer === i
                       ? 'bg-primary text-primary-foreground border-primary shadow-card'
                       : 'border-primary/20 hover:border-primary/50 hover:bg-primary/5'
-                  }`}
+                    }`}
                 >
                   {i}
                 </button>
@@ -249,13 +247,14 @@ const PublicSurvey = () => {
             {currentQuestion.options?.map((option: any) => (
               <button
                 key={option.id}
-                // Importante: O backend aceita string no value. Enviamos o texto da opção.
-                onClick={() => setCurrentAnswer(option.option_text)}
+                // CORREÇÃO: Enviar o ID, não o texto
+                onClick={() => setCurrentAnswer(option.id)}
                 className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
-                  currentAnswer === option.option_text
+                  // Verifica se o ID bate com a resposta atual
+                  currentAnswer === option.id
                     ? 'bg-primary/5 border-primary text-primary font-medium'
                     : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                }`}
+                  }`}
               >
                 {option.option_text}
               </button>
@@ -294,8 +293,8 @@ const PublicSurvey = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
         <div className="flex flex-col items-center gap-2">
-           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-           <p className="text-muted-foreground">Carregando pesquisa...</p>
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground">Carregando pesquisa...</p>
         </div>
       </div>
     );
@@ -327,7 +326,7 @@ const PublicSurvey = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
         <Card className="p-6">
-            <p className="text-muted-foreground">Esta pesquisa não possui perguntas ou não foi encontrada.</p>
+          <p className="text-muted-foreground">Esta pesquisa não possui perguntas ou não foi encontrada.</p>
         </Card>
       </div>
     );
@@ -398,7 +397,7 @@ const PublicSurvey = () => {
           >
             {currentQuestionIndex === questions.length - 1 ? (
               isSubmitting ? (
-                 <>Enviando...</> 
+                <>Enviando...</>
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />

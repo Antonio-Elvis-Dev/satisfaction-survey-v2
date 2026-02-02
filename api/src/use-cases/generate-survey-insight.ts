@@ -1,74 +1,73 @@
-import { SurveysRepository } from "@/repositories/surveys-repository";
-import { ResourceNotFoundError } from "./erros/resource-not-found-error";
-
-import { groq } from '@ai-sdk/groq';
-import { generateText } from 'ai';
-
-import { env } from "@/env";
+import { GoogleGenAI } from "@google/genai";
 import { prisma } from "@/lib/prisma";
+import "dotenv/config";
+import { env } from "@/env";
 
-interface GenerateAiInsightRequest {
+interface GenerateInsightRequest {
     surveyId: string;
 }
 
-export class GenerateAiInsightUseCase {
-    constructor(private surveysRepository: SurveysRepository) { }
+interface GenerateInsightResponse {
+    analysis: string;
+    summary: string;
+}
 
-    async execute({ surveyId }: GenerateAiInsightRequest) {
-        // 1. Busca a pesquisa e TODAS as respostas
+export class GenerateAiInsightUseCase {
+    async execute({ surveyId }: GenerateInsightRequest): Promise<GenerateInsightResponse> {
+        // 1. Fetch survey data and recent text responses
         const survey = await prisma.survey.findUnique({
             where: { id: surveyId },
             include: {
-                question: {
-                    include: {
-                        responses: true
-                    }
-                }
+                survey_metrics: true
             }
         });
 
         if (!survey) {
-            throw new ResourceNotFoundError();
+            throw new Error("Survey not found");
         }
 
-        // 2. Filtra e Formata as Respostas
-        const textInputs: string[] = [];
-
-        survey.question.forEach(q => {
-            q.responses.forEach(r => {
-                if (r.text_response && r.text_response.trim().length > 3) {
-                    textInputs.push(`Pergunta: "${q.question_text}" | Resposta do Usuário: "${r.text_response}"`);
-                }
-            });
+        // Fetch last 50 text responses to analyze (limit to avoid token overflow)
+        const textResponses = await prisma.response.findMany({
+            where: {
+                session: { survey_id: surveyId },
+                text_response: { not: null }
+            },
+            take: 50,
+            orderBy: { answered_at: 'desc' },
+            select: { text_response: true }
         });
 
-        if (textInputs.length < 3) {
+        const comments = textResponses
+            .map(r => r.text_response)
+            .filter(Boolean)
+            .join("\n- ");
+
+        if (comments.length === 0) {
             return {
-                analysis: "Não há respostas textuais suficientes nesta pesquisa para gerar uma análise qualitativa com IA. Aguarde mais respostas."
+                analysis: "Não há comentários textuais suficientes para gerar uma análise qualitativa.",
+                summary: "Sem dados suficientes."
             };
         }
 
-        const dataForAi = textInputs.slice(0, 60).join("\n");
+        // 2. Call AI (Gemini)
+        // Ensure GEMINI_API_KEY is in your .env
+        const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
-        // 3. Inicializa Gemini (Google Generative AI)
-        // ⚠️ Certifique-se de que env.GEMINI_API_KEY está no seu .env e no env/index.ts
-        // const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-
-        // Usamos o modelo 'gemini-1.5-flash' que é rápido e barato (equivalente ao gpt-4o-mini)
-        // const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-        // 4. O Prompt
-        const prompt = `
+       
+        try {
+            const prompt = `
             Você é um Consultor Sênior de Customer Experience (CX) e Análise de Dados.
             
             Analise os dados da seguinte pesquisa de satisfação:
             **Título da Pesquisa:** ${survey.title}
             **Total de Respostas Coletadas:** ${survey.total_responses}
-
+            
             Abaixo estão os comentários reais dos usuários:
             ---
-            ${dataForAi}
+            ${comments}
             ---
+
+            Métricas atuais: NPS ${survey.survey_metrics?.nps_score || 'N/A'}, Nota Média ${survey.survey_metrics?.average_rating || 'N/A'}.
 
             Com base APENAS nestes dados, gere um relatório em Markdown com a seguinte estrutura:
             
@@ -85,25 +84,26 @@ export class GenerateAiInsightUseCase {
             (3 sugestões práticas e diretas para melhorar os resultados baseadas nas reclamações).
 
             Use uma linguagem profissional, direta e empática.
-        `;
+            `;
 
-        // 5. Chamada à API e Tratamento da Resposta (AQUI ESTAVA O ERRO)
-        try {
-            // const result = await model.generateContent(prompt);
-            // const response = await result.response;
-
-            // 👇 No Gemini, pegamos o texto assim, e não via choices[0]
-            const { text } = await generateText({
-                model: groq('llama-3.3-70b-versatile'),
-                prompt: prompt,
+            const response = await client.models.generateContent({
+                model: "gemini-2.0-flash", // or "gemini-1.5-flash"
+                contents: prompt,
             });
 
-            console.log(text)
-            return { analysis: text };
+            const text = response.text || "Não foi possível gerar a análise.";
+
+            return {
+                analysis: text,
+                summary: "Análise baseada em " + textResponses.length + " comentários recentes."
+            };
 
         } catch (error) {
-            console.error("Erro na geração do Gemini:", error);
-            throw new Error("Falha ao gerar insights com Gemini");
+            console.error("Erro na AI:", error);
+            return {
+                analysis: "Erro ao conectar com a inteligência artificial. Tente novamente mais tarde.",
+                summary: "Erro no serviço de AI."
+            };
         }
     }
 }

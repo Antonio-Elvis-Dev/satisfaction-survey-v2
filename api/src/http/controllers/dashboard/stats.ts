@@ -18,15 +18,7 @@ export async function stats(request: FastifyRequest, reply: FastifyReply) {
 
     // Adicionamos trends simulados para manter a UI bonita (mock)
     // Futuramente, calculamos comparando com o período anterior
-    const responseWithTrends = {
-        ...stats,
-        trends: {
-            surveys: 10,
-            responses: 5,
-            csat: 0,
-            nps: 0
-        }
-    }
+   
 
-    return reply.status(200).send(responseWithTrends)
+    return reply.status(200).send(stats)
 }
