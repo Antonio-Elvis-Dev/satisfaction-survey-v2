@@ -11,8 +11,7 @@ export async function getAiAnalysis(request: FastifyRequest, reply: FastifyReply
     const { id } = paramsSchema.parse(request.params)
 
     try {
-        const surveysRepository = new PrismaSurveyRepository()
-        const generateAiInsightUseCase = new GenerateAiInsightUseCase(surveysRepository)
+        const generateAiInsightUseCase = new GenerateAiInsightUseCase()
 
         // Isso pode levar alguns segundos (chamada externa), o frontend deve mostrar loading
         const { analysis } = await generateAiInsightUseCase.execute({

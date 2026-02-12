@@ -1,4 +1,4 @@
-import { SurveysRepository } from "@/repositories/surveys-repository";
+import { SurveysRepository } from "@/repositories/survey-repository";
 import { ResourceNotFoundError } from "./erros/resource-not-found-error";
 
 interface DeleteSurveyRequest {

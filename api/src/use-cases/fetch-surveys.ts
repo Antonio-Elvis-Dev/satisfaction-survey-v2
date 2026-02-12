@@ -1,4 +1,4 @@
-import { SurveysRepository } from "@/repositories/surveys-repository";
+import { SurveysRepository } from "@/repositories/survey-repository";
 import { Survey } from "@prisma/client";
 
 interface FetchSurveyResponse {

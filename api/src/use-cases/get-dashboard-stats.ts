@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { SurveysRepository } from "@/repositories/surveys-repository"
+import { SurveysRepository } from "@/repositories/survey-repository"
 import { QuestionType } from "@prisma/client"
 
 interface GetDashboardStatsRequest {

@@ -1,4 +1,4 @@
-import { SurveysRepository } from "@/repositories/surveys-repository";
+import { SurveysRepository } from "@/repositories/survey-repository";
 import { ResourceNotFoundError } from "./erros/resource-not-found-error";
 import { prisma } from "@/lib/prisma"; // 👈 Certifica-te que isto está importado
 

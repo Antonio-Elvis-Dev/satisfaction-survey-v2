@@ -7,9 +7,26 @@ interface GenerateInsightRequest {
     surveyId: string;
 }
 
+interface SurveyDataResponse {
+    updated_at: Date;
+    total_responses: number;
+    survey_id: string;
+    completed_responses: number;
+    average_completion_time_seconds: number;
+    completion_rate: number ;
+    average_rating: number ;
+    nps_score: number ;
+    nps_promoters: number;
+    nps_passives: number;
+    nps_detractors: number;
+    csat_score: number ;
+    last_calculated_at: Date;
+}
+
 interface GenerateInsightResponse {
     analysis: string;
     summary: string;
+    survey?: SurveyDataResponse[]
 }
 
 export class GenerateAiInsightUseCase {
@@ -21,6 +38,8 @@ export class GenerateAiInsightUseCase {
                 survey_metrics: true
             }
         });
+
+
 
         if (!survey) {
             throw new Error("Survey not found");
@@ -45,7 +64,9 @@ export class GenerateAiInsightUseCase {
         if (comments.length === 0) {
             return {
                 analysis: "Não há comentários textuais suficientes para gerar uma análise qualitativa.",
-                summary: "Sem dados suficientes."
+                summary: "Sem dados suficientes.",
+                
+
             };
         }
 
@@ -53,8 +74,9 @@ export class GenerateAiInsightUseCase {
         // Ensure GEMINI_API_KEY is in your .env
         const client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
-       
+
         try {
+
             const prompt = `
             Você é um Consultor Sênior de Customer Experience (CX) e Análise de Dados.
             
@@ -92,10 +114,15 @@ export class GenerateAiInsightUseCase {
             });
 
             const text = response.text || "Não foi possível gerar a análise.";
+            // console.log(survey.survey_metrics?.nps_score || "Teste: error")
+
+
+            console.log(survey.survey_metrics)
 
             return {
                 analysis: text,
-                summary: "Análise baseada em " + textResponses.length + " comentários recentes."
+                summary: "Análise baseada em " + textResponses.length + " comentários recentes.",
+                survey: survey.survey_metrics
             };
 
         } catch (error) {
