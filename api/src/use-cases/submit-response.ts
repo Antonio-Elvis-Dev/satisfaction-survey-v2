@@ -1,3 +1,4 @@
+import { UpdateSurveyMetricsUseCase } from './update-survey-metrics';
 import { QuestionsRepository } from "@/repositories/questions-repositorys"
 import { ResponseSessionsRepository } from "@/repositories/response-sessions-repository"
 import { Prisma } from "@prisma/client"
@@ -11,23 +12,29 @@ interface SubmitResponseRequest {
         value: string | number
     }[]
 }
- 
+
 export class SubmitResponseUseCase {
     constructor(
         private responseSessionRepository: ResponseSessionsRepository,
-        private questionsRepository: QuestionsRepository
-
+        private questionsRepository: QuestionsRepository,
+        private updateSurveyMetricsUseCase: UpdateSurveyMetricsUseCase
     ) { }
 
     async execute({ surveyId, respondentId, timeSpentSeconds, answers }: SubmitResponseRequest) {
 
         const formattedResponses = answers.map(answer => {
-            const isNumber = typeof answer.value === 'number'
+            const isNumber = typeof answer.value === 'number';
+            const valueStr = answer.value as string;
+            const isUUID = typeof answer.value === 'string' && answer.value.length > 30 && answer.value.includes('-');
 
             return {
                 question: { connect: { id: answer.questionId } },
                 numeric_response: isNumber ? (answer.value as number) : null,
-                text_response: !isNumber ? (answer.value as string) : null
+                ...(isUUID && {
+                    selected_option: {
+                        connect: { id: valueStr }
+                    }
+                }), text_response: (!isNumber && !isUUID) ? valueStr : null
             }
         })
 
@@ -41,7 +48,7 @@ export class SubmitResponseUseCase {
             //TODO: Usamos o spread operator (...) condicional.
             // Se respondentId for null ou undefined, essa linha é ignorada
             // e a chave 'respondent' nem entra no objeto.
-            
+
             ...(respondentId && {
                 respondent: {
                     connect: { id: respondentId }
@@ -57,7 +64,7 @@ export class SubmitResponseUseCase {
                 create: formattedResponses
             }
         })
-
+        await this.updateSurveyMetricsUseCase.execute({ surveyId });
         return {};
     }
 }

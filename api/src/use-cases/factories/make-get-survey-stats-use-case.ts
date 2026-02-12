@@ -3,7 +3,7 @@ import { GetSurveyStatsUseCase } from "../get-survey-stats"
 
 export function makeGetSurveyStatsUseCase(){
     const surveysRepository = new PrismaSurveyRepository()
-    const getSurveyStatsUseCase = new GetSurveyStatsUseCase(surveysRepository)
+    const getSurveyStatsUseCase = new GetSurveyStatsUseCase()
 
 
     return getSurveyStatsUseCase

@@ -70,7 +70,7 @@ const Dashboard = () => {
       description: 'Score NPS',
       icon: Activity,
       color: 'text-warning',
-       trend: `${stats?.trends?.nps >= 0 ? '+' : ''}${stats?.trends?.nps?.toFixed(1)}`,
+      trend: `${stats?.trends?.nps >= 0 ? '+' : ''}${stats?.trends?.nps?.toFixed(1)}`,
       trendUp: (stats?.trends?.nps || 0) >= 0,
     }
   ];
@@ -209,8 +209,9 @@ const Dashboard = () => {
                 <div key={survey.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors">
                   <div>
                     <h4 className="font-medium text-foreground">{survey.title}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {survey.total_responses || 0} respostas
+                    
+                    <p className="text-xs text-muted-foreground">
+                      Por: {survey.author} • {survey.totalResponses} respostas
                     </p>
                   </div>
                   <div className="flex items-center space-x-3">

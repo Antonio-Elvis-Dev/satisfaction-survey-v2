@@ -1,6 +1,5 @@
 import { makeCreateSurveyUseCase } from "@/use-cases/factories/make-create-survey-use-case";
 import { FastifyReply, FastifyRequest } from "fastify";
-import { title } from "process";
 import { z } from "zod";
 
 export async function create(request: FastifyRequest, reply: FastifyReply) {

@@ -1,5 +1,5 @@
 import { Survey, Prisma } from '@prisma/client';
-import { SurveysRepository } from './../surveys-repository';
+import { SurveysRepository } from '../survey-repository';
 import { randomUUID } from 'crypto';
 import { da } from 'zod/v4/locales';
 export class InMemorySurveysRepository implements SurveysRepository {
